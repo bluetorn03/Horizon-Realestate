@@ -1,0 +1,89 @@
+{
+  "entities": {
+    "Property": {
+      "title": "Property",
+      "description": "A real estate property listing",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "number" },
+        "listingType": { "type": "string", "enum": ["sale", "rent", "commercial"] },
+        "category": { "type": "string", "enum": ["House", "Apartment", "Plot", "Villa", "Commercial"] },
+        "location": { "type": "string" },
+        "address": { "type": "string" },
+        "city": { "type": "string" },
+        "state": { "type": "string" },
+        "zipCode": { "type": "string" },
+        "bedrooms": { "type": "number" },
+        "bathrooms": { "type": "number" },
+        "sqft": { "type": "number" },
+        "lotSize": { "type": "string" },
+        "yearBuilt": { "type": "number" },
+        "garage": { "type": "number" },
+        "images": { "type": "array", "items": { "type": "string" } },
+        "featured": { "type": "boolean" },
+        "amenities": { "type": "array", "items": { "type": "string" } },
+        "ownerId": { "type": "string" },
+        "ownerName": { "type": "string" },
+        "ownerEmail": { "type": "string" },
+        "ownerPhone": { "type": "string" },
+        "ownerPhoto": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["title", "price", "listingType", "category", "location", "images", "ownerId"]
+    },
+    "Viewing": {
+      "title": "Viewing",
+      "description": "A booking for viewing a property",
+      "type": "object",
+      "properties": {
+        "propertyId": { "type": "string" },
+        "propertyTitle": { "type": "string" },
+        "propertyLocation": { "type": "string" },
+        "propertyImage": { "type": "string" },
+        "propertyPrice": { "type": "number" },
+        "propertyOwnerId": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "userPhone": { "type": "string" },
+        "date": { "type": "string" },
+        "timeSlot": { "type": "string" },
+        "notes": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "confirmed", "cancelled", "completed"] },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["propertyId", "userId", "date", "timeSlot", "status"]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "phone": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "agent", "admin"] }
+      },
+      "required": ["uid"]
+    }
+  },
+  "firestore": {
+    "properties": {
+      "schema": "Property",
+      "description": "Collection of all listed properties"
+    },
+    "viewings": {
+      "schema": "Viewing",
+      "description": "Collection of viewing appointments"
+    },
+    "users": {
+      "schema": "UserProfile",
+      "description": "Collection of user profile records"
+    }
+  }
+}

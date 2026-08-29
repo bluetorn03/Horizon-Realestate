@@ -1,0 +1,59 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Properties collection
+    match /properties/{propertyId} {
+      // Anyone can browse properties
+      allow read: if true;
+      
+      // Authenticated users can create properties with their ownerId, or system seed listings
+      allow create: if (isAuthenticated() && request.resource.data.ownerId == request.auth.uid) ||
+                    (request.resource.data.ownerId == 'system_admin');
+      
+      // Only property owner can update or delete
+      allow update, delete: if isAuthenticated() && 
+                            resource.data.ownerId == request.auth.uid;
+    }
+
+    // Viewings / Bookings collection
+    match /viewings/{viewingId} {
+      // Users can read their own bookings or viewings on their properties
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        resource.data.propertyOwnerId == request.auth.uid
+      );
+      
+      // Authenticated users can book a viewing
+      allow create: if isAuthenticated() && 
+                    request.resource.data.userId == request.auth.uid;
+      
+      // Users or property owners can update/cancel viewings
+      allow update, delete: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        resource.data.propertyOwnerId == request.auth.uid
+      );
+    }
+
+    // User profiles collection
+    match /users/{userId} {
+      allow read: if true;
+      allow write: if isOwner(userId);
+    }
+
+    // Saved/Favorite properties
+    match /favorites/{favoriteId} {
+      allow read, write: if isAuthenticated() && 
+                         (resource == null || resource.data.userId == request.auth.uid) &&
+                         (request.resource == null || request.resource.data.userId == request.auth.uid);
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "Horizon Estates - Luxury Real Estate",
+  "description": "Modern and premium real estate platform for browsing, listing, and booking viewings for luxury houses, apartments, and plots.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
