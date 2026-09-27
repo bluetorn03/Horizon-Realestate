@@ -77,11 +77,6 @@
     font-family: var(--font-brand);
   }
 
-  /* Legacy alias kept for existing markup. */
-  .font-serif-luxury {
-    font-family: var(--font-display);
-  }
-
   ::selection {
     background: var(--color-gold-500);
     color: #fff;
@@ -182,10 +177,6 @@ html.lenis body {
   opacity: var(--card-opacity, 1);
 }
 
-.tilt-layer {
-  transform: translateZ(28px);
-}
-
 /* Pointer-tracked sheen for premium cards. */
 .card-glare {
   background: radial-gradient(
@@ -213,22 +204,6 @@ html.lenis body {
   transform: translate3d(var(--mag-label-x, 0px), var(--mag-label-y, 0px), 0);
 }
 
-/* Editorial image mask reveal */
-.mask-reveal {
-  clip-path: inset(0% 0% 0% 0%);
-}
-
-.hairline {
-  background: linear-gradient(
-    90deg,
-    transparent,
-    var(--color-bone-300) 18%,
-    var(--color-bone-300) 82%,
-    transparent
-  );
-  height: 1px;
-}
-
 /* Warm architectural wash — never a neon gradient. */
 .wash-hero {
   background:
@@ -237,24 +212,8 @@ html.lenis body {
     linear-gradient(180deg, #0b1220 0%, #101a2d 55%, #0b1220 100%);
 }
 
-.wash-stone {
-  background: linear-gradient(180deg, var(--color-bone-50) 0%, var(--color-bone-100) 100%);
-}
-
 .wash-ink {
   background: linear-gradient(180deg, var(--color-ink-900) 0%, var(--color-ink-950) 100%);
-}
-
-/* ==========================================================================
-   Utilities
-   ========================================================================== */
-@utility text-balance-tight {
-  text-wrap: balance;
-  letter-spacing: -0.02em;
-}
-
-@utility no-tap-highlight {
-  -webkit-tap-highlight-color: transparent;
 }
 
 /* ==========================================================================
