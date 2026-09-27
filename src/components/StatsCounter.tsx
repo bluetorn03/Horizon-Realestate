@@ -1,55 +1,54 @@
 import React from 'react';
-import { Home, Key, Users, Award } from 'lucide-react';
+import { Building2, Key, Users, MapPinned } from 'lucide-react';
+
+const STATS = [
+  {
+    id: 'stat-properties-sale',
+    icon: Building2,
+    value: '1,850+',
+    label: 'Residences for sale',
+  },
+  {
+    id: 'stat-properties-rent',
+    icon: Key,
+    value: '640+',
+    label: 'Monthly rentals live',
+  },
+  {
+    id: 'stat-happy-clients',
+    icon: Users,
+    value: '3,400+',
+    label: 'Families advised',
+  },
+  {
+    id: 'stat-years-exp',
+    icon: MapPinned,
+    value: '8 Cities',
+    label: 'Across India',
+  },
+];
 
 export const StatsCounter: React.FC = () => {
-  const stats = [
-    {
-      id: 'stat-properties-sale',
-      icon: Home,
-      value: '150+',
-      label: 'Properties for Sale',
-    },
-    {
-      id: 'stat-properties-rent',
-      icon: Key,
-      value: '250+',
-      label: 'Properties for Rent',
-    },
-    {
-      id: 'stat-happy-clients',
-      icon: Users,
-      value: '1200+',
-      label: 'Happy Clients',
-    },
-    {
-      id: 'stat-years-exp',
-      icon: Award,
-      value: '10+',
-      label: 'Years of Experience',
-    },
-  ];
-
   return (
-    <section className="bg-[#0b1329] text-white py-12 px-4 sm:px-8 border-y border-slate-800">
-      <div className="max-w-7xl mx-auto">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12">
-          {stats.map((stat) => {
+    <section className="wash-ink border-y border-bone-100/10 px-4 py-14 text-bone-100 sm:px-8">
+      <div className="mx-auto max-w-7xl">
+        <div className="grid grid-cols-2 gap-8 md:grid-cols-4 md:gap-12">
+          {STATS.map((stat) => {
             const Icon = stat.icon;
             return (
               <div
                 key={stat.id}
                 id={stat.id}
-                className="flex items-center gap-4 group justify-center md:justify-start"
+                className="group flex items-center justify-center gap-4 md:justify-start"
               >
-                {/* Thin outline icon in circle matching reference */}
-                <div className="w-12 h-12 rounded-full border border-slate-700/80 bg-slate-900/50 flex items-center justify-center shrink-0 group-hover:border-amber-500/80 transition-colors">
-                  <Icon className="w-6 h-6 text-slate-300 group-hover:text-amber-400 transition-colors stroke-[1.5]" />
-                </div>
+                <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-bone-100/20 bg-white/5 transition-colors duration-500 group-hover:border-gold-400/60">
+                  <Icon className="h-5 w-5 text-bone-300 transition-colors duration-500 group-hover:text-gold-300" />
+                </span>
                 <div>
-                  <div className="text-2xl sm:text-3xl font-bold tracking-tight text-white font-serif-luxury">
+                  <div className="font-display text-2xl font-bold tracking-tight text-bone-50 sm:text-3xl">
                     {stat.value}
                   </div>
-                  <div className="text-xs text-slate-400 font-medium mt-0.5 tracking-wide">
+                  <div className="mt-0.5 text-[11px] font-medium uppercase tracking-[0.14em] text-bone-400">
                     {stat.label}
                   </div>
                 </div>

@@ -1,272 +1,248 @@
 import React, { useState } from 'react';
-import { 
-  Building2, 
-  MapPin, 
-  Phone, 
-  Mail, 
-  Send, 
-  Check, 
-  Facebook, 
-  Instagram, 
-  Linkedin, 
-  Twitter 
-} from 'lucide-react';
+import { MapPin, Phone, Mail, Send, Check, Facebook, Instagram, Linkedin, Twitter } from 'lucide-react';
+import { BRAND, INDIAN_CITIES } from '../lib/locations';
+import { scrollToSection } from '../lib/scroll';
 
 interface FooterProps {
   onScrollToSection: (sectionId: string) => void;
   onSelectCategory: (category: string) => void;
+  onSelectLocation: (city: string) => void;
 }
+
+const QUICK_LINKS = [
+  { label: 'Home', id: 'hero-section' },
+  { label: 'About Us', id: 'about-section' },
+  { label: 'Signature Collection', id: 'collection-marquee' },
+  { label: 'Architecture Visualiser', id: 'visualizer-section' },
+  { label: 'Services', id: 'services-section' },
+  { label: 'Client Stories', id: 'testimonials-section' },
+  { label: 'Contact', id: 'contact-section' },
+];
+
+const PROPERTY_TYPES = [
+  { label: 'Apartments & Flats', value: 'Apartment' },
+  { label: 'Villas', value: 'Villa' },
+  { label: 'Houses & Bungalows', value: 'House' },
+  { label: 'Residential Plots', value: 'Plot' },
+  { label: 'Commercial Offices', value: 'Commercial' },
+];
 
 export const Footer: React.FC<FooterProps> = ({
   onScrollToSection,
   onSelectCategory,
+  onSelectLocation,
 }) => {
   const [newsletterEmail, setNewsletterEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
 
-  const handleSubscribe = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubscribe = (event: React.FormEvent) => {
+    event.preventDefault();
     if (!newsletterEmail) return;
     setSubscribed(true);
     setNewsletterEmail('');
-    setTimeout(() => setSubscribed(false), 5000);
+    window.setTimeout(() => setSubscribed(false), 6000);
   };
 
-  const handleCategory = (cat: string) => {
-    onSelectCategory(cat);
+  const handleCategory = (category: string) => {
+    onSelectCategory(category);
+    onScrollToSection('properties-section');
+  };
+
+  const handleCity = (city: string) => {
+    onSelectLocation(city);
     onScrollToSection('properties-section');
   };
 
   return (
-    <footer className="bg-[#070d1d] text-slate-400 text-xs border-t border-slate-800/80">
-      {/* Main Footer Links */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-8 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10 lg:gap-8">
-          {/* 1. Brand column matching reference */}
-          <div className="lg:col-span-1 space-y-4">
+    <footer className="wash-ink border-t border-bone-100/10 text-bone-400">
+      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-8">
+        <div
+          className="grid grid-cols-1 gap-10 md:grid-cols-2 lg:grid-cols-5 lg:gap-8"
+          data-reveal-stagger
+        >
+          {/* Brand */}
+          <div className="space-y-4">
             <div className="flex items-center gap-3">
-              <div className="flex items-end gap-0.5 h-8 w-8 justify-center pb-0.5">
-                <div className="w-1.5 h-5 bg-amber-600 rounded-t-[1px]"></div>
-                <div className="w-1.5 h-8 bg-amber-500 rounded-t-[1px]"></div>
-                <div className="w-1.5 h-6 bg-amber-700 rounded-t-[1px]"></div>
-              </div>
-              <div>
-                <span className="font-brand font-bold text-lg tracking-wider text-white block leading-tight">
+              <span className="flex h-9 w-9 items-end justify-center gap-[3px] pb-1" aria-hidden="true">
+                <span className="w-[4px] rounded-t-[2px] bg-gold-600" style={{ height: 18 }} />
+                <span className="w-[4px] rounded-t-[2px] bg-gold-400" style={{ height: 30 }} />
+                <span className="w-[4px] rounded-t-[2px] bg-gold-700" style={{ height: 22 }} />
+              </span>
+              <span>
+                <span className="font-brand block text-lg font-bold leading-none tracking-[0.18em] text-bone-50">
                   HORIZON
                 </span>
-                <span className="text-[9px] tracking-[0.25em] text-slate-400 font-semibold uppercase block leading-none">
-                  — ESTATES —
+                <span className="mt-1 block text-[9px] font-semibold uppercase leading-none tracking-[0.3em] text-bone-500">
+                  Estates · India
                 </span>
-                <span className="text-[7.5px] tracking-wider text-amber-500 font-medium block">
-                  FIND YOUR NEW HORIZON
-                </span>
-              </div>
+              </span>
             </div>
-
-            <p className="text-slate-400 text-xs leading-relaxed font-light">
-              Your trusted partner in finding exceptional properties.
+            <p className="text-xs leading-relaxed text-bone-400">
+              A private property advisory representing vetted, RERA-registered residences across
+              India's eight most active markets.
             </p>
-
-            {/* Social Icons matching reference */}
-            <div className="flex items-center gap-3 pt-2">
-              <a 
-                href="#social" 
-                className="w-8 h-8 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-400 hover:text-amber-400 hover:border-amber-500/50 transition-colors"
-                aria-label="Facebook"
-              >
-                <Facebook className="w-4 h-4" />
-              </a>
-              <a 
-                href="#social" 
-                className="w-8 h-8 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-400 hover:text-amber-400 hover:border-amber-500/50 transition-colors"
-                aria-label="Instagram"
-              >
-                <Instagram className="w-4 h-4" />
-              </a>
-              <a 
-                href="#social" 
-                className="w-8 h-8 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-400 hover:text-amber-400 hover:border-amber-500/50 transition-colors"
-                aria-label="LinkedIn"
-              >
-                <Linkedin className="w-4 h-4" />
-              </a>
-              <a 
-                href="#social" 
-                className="w-8 h-8 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-400 hover:text-amber-400 hover:border-amber-500/50 transition-colors"
-                aria-label="Twitter"
-              >
-                <Twitter className="w-4 h-4" />
-              </a>
+            <div className="flex items-center gap-3 pt-1">
+              {[
+                { Icon: Facebook, label: 'Facebook' },
+                { Icon: Instagram, label: 'Instagram' },
+                { Icon: Linkedin, label: 'LinkedIn' },
+                { Icon: Twitter, label: 'Twitter' },
+              ].map(({ Icon, label }) => (
+                <a
+                  key={label}
+                  href="#social"
+                  aria-label={label}
+                  className="grid h-8 w-8 place-items-center rounded-full border border-bone-100/15 bg-white/5 text-bone-400 transition-colors hover:border-gold-400/50 hover:text-gold-300"
+                >
+                  <Icon className="h-4 w-4" />
+                </a>
+              ))}
             </div>
           </div>
 
-          {/* 2. Quick Links matching reference */}
+          {/* Quick links */}
           <div>
-            <h4 className="text-white text-xs font-bold uppercase tracking-wider mb-4 font-sans">
-              QUICK LINKS
+            <h4 className="mb-4 text-[11px] font-bold uppercase tracking-[0.18em] text-bone-50">
+              Quick Links
             </h4>
             <ul className="space-y-2.5">
-              <li>
-                <button 
-                  onClick={() => onScrollToSection('hero-section')} 
-                  className="hover:text-amber-400 transition-colors"
-                >
-                  Home
-                </button>
-              </li>
-              <li>
-                <button 
-                  onClick={() => onScrollToSection('about-section')} 
-                  className="hover:text-amber-400 transition-colors"
-                >
-                  About Us
-                </button>
-              </li>
-              <li>
-                <button 
-                  onClick={() => onScrollToSection('properties-section')} 
-                  className="hover:text-amber-400 transition-colors"
-                >
-                  Properties
-                </button>
-              </li>
-              <li>
-                <button 
-                  onClick={() => onScrollToSection('services-section')} 
-                  className="hover:text-amber-400 transition-colors"
-                >
-                  Services
-                </button>
-              </li>
-              <li>
-                <button 
-                  onClick={() => onScrollToSection('testimonials-section')} 
-                  className="hover:text-amber-400 transition-colors"
-                >
-                  Blog & Insights
-                </button>
-              </li>
-              <li>
-                <button 
-                  onClick={() => onScrollToSection('contact-section')} 
-                  className="hover:text-amber-400 transition-colors"
-                >
-                  Contact Us
-                </button>
-              </li>
+              {QUICK_LINKS.map((link) => (
+                <li key={link.id}>
+                  <button
+                    type="button"
+                    onClick={() => onScrollToSection(link.id)}
+                    className="text-xs transition-colors hover:text-gold-300"
+                  >
+                    {link.label}
+                  </button>
+                </li>
+              ))}
             </ul>
           </div>
 
-          {/* 3. Property Types matching reference */}
+          {/* Property types */}
           <div>
-            <h4 className="text-white text-xs font-bold uppercase tracking-wider mb-4 font-sans">
-              PROPERTY TYPES
+            <h4 className="mb-4 text-[11px] font-bold uppercase tracking-[0.18em] text-bone-50">
+              Property Types
             </h4>
             <ul className="space-y-2.5">
-              <li>
-                <button onClick={() => handleCategory('Apartment')} className="hover:text-amber-400 transition-colors">
-                  Apartments
-                </button>
-              </li>
-              <li>
-                <button onClick={() => handleCategory('Villa')} className="hover:text-amber-400 transition-colors">
-                  Villas
-                </button>
-              </li>
-              <li>
-                <button onClick={() => handleCategory('House')} className="hover:text-amber-400 transition-colors">
-                  Houses
-                </button>
-              </li>
-              <li>
-                <button onClick={() => handleCategory('Commercial')} className="hover:text-amber-400 transition-colors">
-                  Offices
-                </button>
-              </li>
-              <li>
-                <button onClick={() => handleCategory('Commercial')} className="hover:text-amber-400 transition-colors">
-                  Commercial
-                </button>
-              </li>
-              <li>
-                <button onClick={() => handleCategory('Plot')} className="hover:text-amber-400 transition-colors">
-                  Land / Plots
-                </button>
-              </li>
+              {PROPERTY_TYPES.map((type) => (
+                <li key={type.value}>
+                  <button
+                    type="button"
+                    onClick={() => handleCategory(type.value)}
+                    className="text-xs transition-colors hover:text-gold-300"
+                  >
+                    {type.label}
+                  </button>
+                </li>
+              ))}
             </ul>
           </div>
 
-          {/* 4. Contact Us matching reference */}
+          {/* Cities */}
           <div>
-            <h4 className="text-white text-xs font-bold uppercase tracking-wider mb-4 font-sans">
-              CONTACT US
+            <h4 className="mb-4 text-[11px] font-bold uppercase tracking-[0.18em] text-bone-50">
+              Cities We Cover
             </h4>
-            <div className="space-y-3">
-              <div className="flex items-start gap-2.5">
-                <MapPin className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                <span className="leading-relaxed">123 Skyline Avenue, New York, NY 10001</span>
-              </div>
-              <div className="flex items-center gap-2.5">
-                <Phone className="w-4 h-4 text-amber-500 shrink-0" />
-                <a href="tel:+12125557890" className="hover:text-amber-400 transition-colors">
-                  +1 (212) 555-7890
-                </a>
-              </div>
-              <div className="flex items-center gap-2.5">
-                <Mail className="w-4 h-4 text-amber-500 shrink-0" />
-                <a href="mailto:info@horizonestates.com" className="hover:text-amber-400 transition-colors">
-                  info@horizonestates.com
-                </a>
-              </div>
-            </div>
+            <ul className="space-y-2.5">
+              {INDIAN_CITIES.map((city) => (
+                <li key={city.name}>
+                  <button
+                    type="button"
+                    onClick={() => handleCity(city.name)}
+                    className="text-xs transition-colors hover:text-gold-300"
+                  >
+                    {city.name}
+                  </button>
+                </li>
+              ))}
+            </ul>
           </div>
 
-          {/* 5. Newsletter matching reference */}
+          {/* Contact + newsletter */}
           <div>
-            <h4 className="text-white text-xs font-bold uppercase tracking-wider mb-4 font-sans">
-              NEWSLETTER
+            <h4 className="mb-4 text-[11px] font-bold uppercase tracking-[0.18em] text-bone-50">
+              Contact
             </h4>
-            <p className="text-xs text-slate-400 mb-3 leading-relaxed">
-              Subscribe to get the latest updates and exclusive offers.
-            </p>
+            <ul className="space-y-3 text-xs">
+              <li className="flex items-start gap-2.5">
+                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-gold-500" />
+                <span className="leading-relaxed">
+                  {BRAND.addressLine1}, {BRAND.addressLine2}
+                </span>
+              </li>
+              <li className="flex items-center gap-2.5">
+                <Phone className="h-4 w-4 shrink-0 text-gold-500" />
+                <a
+                  href={`tel:${BRAND.phonePrimary.replace(/\s/g, '')}`}
+                  className="transition-colors hover:text-gold-300"
+                >
+                  {BRAND.phonePrimary}
+                </a>
+              </li>
+              <li className="flex items-center gap-2.5">
+                <Mail className="h-4 w-4 shrink-0 text-gold-500" />
+                <a href={`mailto:${BRAND.emailPrimary}`} className="transition-colors hover:text-gold-300">
+                  {BRAND.emailPrimary}
+                </a>
+              </li>
+            </ul>
 
+            <h4 className="mb-3 mt-8 text-[11px] font-bold uppercase tracking-[0.18em] text-bone-50">
+              New Launch Alerts
+            </h4>
+            <p className="mb-3 text-xs leading-relaxed text-bone-400">
+              A short monthly note on new launches, circle-rate revisions and RERA filings.
+            </p>
             <form onSubmit={handleSubscribe} className="relative flex items-center">
               <input
                 type="email"
                 required
                 value={newsletterEmail}
-                onChange={(e) => setNewsletterEmail(e.target.value)}
-                placeholder="Enter your email"
-                className="w-full bg-slate-900 border border-slate-800 rounded-lg pl-3.5 pr-12 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-amber-500 font-medium"
+                onChange={(event) => setNewsletterEmail(event.target.value)}
+                placeholder="your@email.in"
+                aria-label="Email address for new launch alerts"
+                className="w-full rounded-lg border border-bone-100/15 bg-white/5 py-2.5 pl-3.5 pr-12 text-xs text-bone-50 placeholder-bone-500 focus:border-gold-400/60 focus:outline-none focus:ring-1 focus:ring-gold-500"
               />
               <button
                 type="submit"
                 aria-label="Subscribe"
-                className="absolute right-1 top-1 bottom-1 px-3 bg-[#d8a853] hover:bg-[#c9973e] text-slate-950 rounded-md flex items-center justify-center transition-colors cursor-pointer"
+                className="absolute right-1 top-1 bottom-1 grid place-items-center rounded-md bg-gold-500 px-3 text-ink-950 transition-colors hover:bg-gold-400"
               >
-                {subscribed ? <Check className="w-4 h-4 text-slate-950" /> : <Send className="w-3.5 h-3.5 fill-slate-950" />}
+                {subscribed ? <Check className="h-4 w-4" /> : <Send className="h-3.5 w-3.5" />}
               </button>
             </form>
-
             {subscribed && (
-              <p className="text-[11px] text-emerald-400 mt-2">
-                Thank you for subscribing to Horizon Estates!
+              <p className="mt-2 text-[11px] text-emerald-400">
+                Subscribed — thank you for following Horizon Estates.
               </p>
             )}
           </div>
         </div>
       </div>
 
-      {/* Bottom Bar matching reference */}
-      <div className="border-t border-slate-800/80 py-6 px-4 sm:px-8">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-slate-500 text-[11px]">
-          <div>
-            © 2026 Horizon Estates. All Rights Reserved.
-          </div>
-          <div className="flex items-center gap-6">
-            <a href="#privacy" className="hover:text-slate-300 transition-colors">Privacy Policy</a>
-            <span>|</span>
-            <a href="#terms" className="hover:text-slate-300 transition-colors">Terms & Conditions</a>
+      <div className="border-t border-bone-100/10 px-4 py-6 sm:px-8">
+        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 text-[11px] text-bone-500 sm:flex-row">
+          <p>© {new Date().getFullYear()} {BRAND.legalName}. All rights reserved.</p>
+          <p className="text-center sm:text-right">
+            {BRAND.rera} · CIN {BRAND.cin} · GSTIN {BRAND.gst}
+          </p>
+          <div className="flex items-center gap-5">
+            <button
+              type="button"
+              onClick={() => scrollToSection('contact-section')}
+              className="transition-colors hover:text-bone-300"
+            >
+              Privacy Policy
+            </button>
+            <button
+              type="button"
+              onClick={() => scrollToSection('contact-section')}
+              className="transition-colors hover:text-bone-300"
+            >
+              Terms & Conditions
+            </button>
           </div>
         </div>
       </div>

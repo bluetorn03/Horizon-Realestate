@@ -1,21 +1,25 @@
 import React, { useState } from 'react';
-import { 
-  X, 
-  Calendar, 
-  Clock, 
-  MapPin, 
-  CheckCircle2, 
-  User, 
-  Mail, 
-  Phone, 
+import {
+  Calendar,
+  Clock,
+  MapPin,
+  CheckCircle2,
+  Mail,
+  Phone,
   FileText,
   Sparkles,
-  Lock
+  Lock,
+  ShieldCheck,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import type { Property, Viewing } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { bookViewing } from '../lib/firebase';
+import { Modal, ModalHeader } from './Modal';
+import { MagneticButton } from './MagneticButton';
+import { formatPrice } from '../lib/format';
+import { PLACEHOLDER_IMAGE, unsplashUrl } from '../lib/images';
+import { VIEWING_TIME_SLOTS } from '../lib/locations';
 
 interface BookViewingModalProps {
   property: Property | null;
@@ -23,6 +27,10 @@ interface BookViewingModalProps {
   onOpenAuth: () => void;
   onViewingBooked: (viewing: Viewing) => void;
 }
+
+const labelClass = 'mb-1 block text-[10px] font-bold uppercase tracking-[0.16em] text-ink-700';
+const inputClass =
+  'w-full rounded-lg border border-bone-300 bg-bone-50 px-3.5 py-2.5 text-xs font-medium text-ink-900 focus:border-gold-500 focus:outline-none focus:ring-2 focus:ring-gold-500/30';
 
 export const BookViewingModal: React.FC<BookViewingModalProps> = ({
   property,
@@ -34,40 +42,29 @@ export const BookViewingModal: React.FC<BookViewingModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
   const [createdViewing, setCreatedViewing] = useState<Viewing | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  // Tomorrow as default date
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
-  const formattedDefaultDate = tomorrow.toISOString().split('T')[0];
+  const defaultDate = tomorrow.toISOString().split('T')[0];
 
-  const [date, setDate] = useState(formattedDefaultDate);
-  const [timeSlot, setTimeSlot] = useState('11:30 AM');
+  const [date, setDate] = useState(defaultDate);
+  const [timeSlot, setTimeSlot] = useState(VIEWING_TIME_SLOTS[1]);
   const [userName, setUserName] = useState(user?.displayName || '');
   const [userEmail, setUserEmail] = useState(user?.email || '');
-  const [userPhone, setUserPhone] = useState('+1 (555) 234-5678');
+  const [userPhone, setUserPhone] = useState('');
   const [notes, setNotes] = useState('');
-  const [error, setError] = useState<string | null>(null);
 
   if (!property) return null;
 
-  const timeSlots = [
-    '09:30 AM',
-    '11:00 AM',
-    '01:30 PM',
-    '03:00 PM',
-    '04:30 PM',
-    '06:00 PM'
-  ];
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     if (!user) {
       onOpenAuth();
       return;
     }
-
-    if (!date || !timeSlot || !userName || !userEmail) {
-      setError('Please fill in all required fields.');
+    if (!date || !timeSlot || !userName.trim() || !userEmail.trim()) {
+      setError('Please complete your name, email and preferred date.');
       return;
     }
 
@@ -75,283 +72,279 @@ export const BookViewingModal: React.FC<BookViewingModalProps> = ({
     setError(null);
 
     try {
-      const primaryImg = property.images && property.images.length > 0
-        ? property.images[0]
-        : 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80';
-
       const viewing = await bookViewing({
         propertyId: property.id,
         propertyTitle: property.title,
         propertyLocation: property.location || property.city,
-        propertyImage: primaryImg,
+        propertyImage: property.images?.[0] || PLACEHOLDER_IMAGE,
         propertyPrice: property.price,
         propertyOwnerId: property.ownerId,
         userId: user.uid,
-        userName,
-        userEmail,
-        userPhone,
+        userName: userName.trim(),
+        userEmail: userEmail.trim(),
+        userPhone: userPhone.trim(),
         date,
         timeSlot,
-        notes,
+        notes: notes.trim(),
       });
 
       setCreatedViewing(viewing);
       setConfirmed(true);
       onViewingBooked(viewing);
 
-      // Trigger celebratory confetti
       confetti({
-        particleCount: 80,
+        particleCount: 90,
         spread: 70,
-        origin: { y: 0.6 },
-        colors: ['#d8a853', '#0b1329', '#10b981', '#f59e0b']
+        origin: { y: 0.62 },
+        colors: ['#b08d3f', '#0b1220', '#d3b25f', '#e3c988'],
       });
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error booking viewing:', err);
-      setError(err.message || 'Failed to book viewing appointment. Please try again.');
+      setError(
+        err instanceof Error ? err.message : 'Failed to book the viewing. Please try again.',
+      );
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-200">
-      <div 
-        id="book-viewing-modal-container"
-        className="bg-white w-full max-w-xl rounded-2xl shadow-2xl overflow-hidden my-auto border border-stone-200 animate-in zoom-in-95 duration-200"
-      >
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-stone-200 flex items-center justify-between bg-stone-50">
-          <div className="flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-amber-600" />
-            <h3 className="text-base font-bold text-slate-900 font-serif-luxury">
-              Schedule Private Viewing
-            </h3>
+    <Modal onClose={onClose} size="md" id="book-viewing-modal-container">
+      titleId="book-viewing-title"
+      <ModalHeader
+        icon={Calendar}
+        title="Schedule a private viewing"
+        titleId="book-viewing-title"
+        subtitle="Site visits are conducted by a Horizon Estates advisor, in person or over video."
+      />
+
+      <div className="overflow-y-auto p-6">
+        {/* Property summary */}
+        <div className="mb-6 flex items-center gap-3.5 rounded-xl border border-bone-200 bg-bone-100/60 p-3.5">
+          <img
+            src={unsplashUrl(property.images?.[0] || PLACEHOLDER_IMAGE, { width: 200, quality: 70 })}
+            alt=""
+            width={56}
+            height={56}
+            loading="lazy"
+            decoding="async"
+            referrerPolicy="no-referrer"
+            className="h-14 w-14 shrink-0 rounded-lg border border-bone-200 object-cover"
+          />
+          <div className="min-w-0 flex-1">
+            <h4 className="truncate text-xs font-bold text-ink-950">{property.title}</h4>
+            <div className="mt-0.5 flex items-center gap-1 text-[11px] text-bone-500">
+              <MapPin className="h-3 w-3 shrink-0 text-gold-500" />
+              <span className="truncate">{property.location || property.city}</span>
+            </div>
+            <div className="mt-1 font-display text-sm font-bold text-gold-600">
+              {formatPrice(property.price, property.listingType)}
+            </div>
           </div>
-          <button
-            id="book-viewing-close-btn"
-            onClick={onClose}
-            className="p-1.5 rounded-full hover:bg-stone-200 text-slate-500 hover:text-slate-900 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
         </div>
 
-        {/* Content */}
-        <div className="p-6">
-          {/* Property Summary Pill */}
-          <div className="flex items-center gap-3 p-3 bg-stone-50 rounded-xl border border-stone-200 mb-6">
-            <img
-              src={property.images && property.images.length > 0 ? property.images[0] : ''}
-              alt={property.title}
-              className="w-14 h-14 rounded-lg object-cover border border-stone-200 shrink-0"
-              referrerPolicy="no-referrer"
-            />
-            <div className="min-w-0 flex-1">
-              <h4 className="text-xs font-bold text-slate-900 truncate">{property.title}</h4>
-              <div className="flex items-center gap-1 text-[11px] text-slate-500 mt-0.5">
-                <MapPin className="w-3 h-3 text-amber-600 shrink-0" />
-                <span className="truncate">{property.location || property.city}</span>
-              </div>
-              <div className="text-xs font-bold text-amber-800 mt-1">
-                ${property.price.toLocaleString()}
-              </div>
+        {!user ? (
+          <div className="rounded-xl border border-gold-400/40 bg-gold-50/70 px-4 py-8 text-center">
+            <span className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-full bg-gold-100 text-gold-800">
+              <Lock className="h-6 w-6" />
+            </span>
+            <h4 className="font-display text-base font-bold text-ink-950">
+              Sign in to confirm your visit
+            </h4>
+            <p className="mx-auto mt-1.5 max-w-sm text-xs leading-relaxed text-bone-500">
+              A complimentary Horizon Estates account lets you book private viewings, save
+              shortlists and receive ₹ per sq ft updates on your preferred micro-markets.
+            </p>
+            <div className="mt-5">
+              <MagneticButton
+                id="book-modal-auth-btn"
+                variant="ink"
+                size="md"
+                onClick={() => {
+                  onClose();
+                  onOpenAuth();
+                }}
+              >
+                Sign In to Continue
+              </MagneticButton>
             </div>
           </div>
+        ) : confirmed && createdViewing ? (
+          <div className="py-6 text-center">
+            <span className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-full bg-emerald-50 text-emerald-600 ring-8 ring-emerald-50">
+              <CheckCircle2 className="h-9 w-9" />
+            </span>
+            <h4 className="font-display text-xl font-bold text-ink-950">Viewing reserved</h4>
+            <p className="mx-auto mt-1.5 max-w-md text-xs leading-relaxed text-bone-500">
+              Your appointment for{' '}
+              <span className="font-semibold text-ink-900">{createdViewing.propertyTitle}</span> has
+              been sent to the advisory desk. You will receive a confirmation on{' '}
+              {createdViewing.userEmail}.
+            </p>
 
-          {!user ? (
-            /* Unauthenticated state */
-            <div className="text-center py-8 px-4 bg-amber-50/60 rounded-xl border border-amber-200">
-              <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center mx-auto mb-3">
-                <Lock className="w-6 h-6" />
-              </div>
-              <h4 className="text-base font-bold text-slate-900 font-serif-luxury">
-                Authentication Required
-              </h4>
-              <p className="text-xs text-slate-600 mt-1.5 max-w-sm mx-auto">
-                Please sign in or create a complimentary account to book private viewings and connect with our licensed advisors.
-              </p>
-              <div className="mt-5 flex items-center justify-center gap-3">
-                <button
-                  id="book-modal-auth-btn"
-                  onClick={() => {
-                    onClose();
-                    onOpenAuth();
-                  }}
-                  className="px-6 py-2.5 bg-[#0b1329] hover:bg-slate-900 text-white text-xs font-bold uppercase tracking-wider rounded-lg shadow-md"
-                >
-                  Sign In to Continue
-                </button>
-              </div>
-            </div>
-          ) : confirmed && createdViewing ? (
-            /* Success confirmation */
-            <div className="text-center py-8 space-y-4">
-              <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto ring-8 ring-emerald-50">
-                <CheckCircle2 className="w-9 h-9" />
-              </div>
-
-              <div>
-                <h4 className="text-xl font-bold font-serif-luxury text-slate-900">
-                  Viewing Appointment Reserved!
-                </h4>
-                <p className="text-xs text-slate-600 mt-1 max-w-md mx-auto">
-                  Your appointment for <span className="font-semibold text-slate-900">{createdViewing.propertyTitle}</span> has been securely submitted to our advisory desk.
-                </p>
-              </div>
-
-              <div className="bg-stone-50 rounded-xl p-4 text-left border border-stone-200 text-xs space-y-2 max-w-md mx-auto">
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Reserved Date:</span>
-                  <span className="font-bold text-slate-900">{createdViewing.date}</span>
+            <dl className="mx-auto mt-5 max-w-md space-y-2 rounded-xl border border-bone-200 bg-bone-100/60 p-4 text-left text-xs">
+              {[
+                { label: 'Reserved date', value: createdViewing.date },
+                { label: 'Time slot', value: createdViewing.timeSlot },
+                { label: 'Attendee', value: createdViewing.userName },
+              ].map((row) => (
+                <div key={row.label} className="flex items-center justify-between gap-3">
+                  <dt className="text-bone-500">{row.label}</dt>
+                  <dd className="font-bold text-ink-950">{row.value}</dd>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Time Window:</span>
-                  <span className="font-bold text-slate-900">{createdViewing.timeSlot}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Attendee:</span>
-                  <span className="font-bold text-slate-900">{createdViewing.userName}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Status:</span>
-                  <span className="font-bold text-amber-700 uppercase bg-amber-50 px-2 py-0.5 rounded">
+              ))}
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-bone-500">Status</dt>
+                <dd>
+                  <span className="rounded bg-gold-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-gold-800">
                     {createdViewing.status}
                   </span>
-                </div>
+                </dd>
               </div>
+            </dl>
 
-              <div className="pt-3">
-                <button
-                  onClick={onClose}
-                  className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold uppercase tracking-wider rounded-lg shadow-md"
-                >
-                  Done
-                </button>
-              </div>
+            <div className="mt-6">
+              <MagneticButton variant="ink" size="md" onClick={onClose}>
+                Done
+              </MagneticButton>
             </div>
-          ) : (
-            /* Booking Form */
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {error && (
-                <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-700">
-                  {error}
-                </div>
-              )}
-
-              {/* Date Selection */}
-              <div>
-                <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">
-                  Select Viewing Date *
-                </label>
-                <div className="relative">
-                  <input
-                    type="date"
-                    required
-                    min={new Date().toISOString().split('T')[0]}
-                    value={date}
-                    onChange={(e) => setDate(e.target.value)}
-                    className="w-full bg-stone-50 border border-stone-300 rounded-lg px-3.5 py-2.5 text-xs text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  />
-                </div>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {error && (
+              <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs font-medium text-rose-700">
+                {error}
               </div>
+            )}
 
-              {/* Time Slots Grid */}
-              <div>
-                <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1.5">
-                  Preferred Time Slot *
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {timeSlots.map((slot) => (
+            <div>
+              <label htmlFor="viewing-date" className={labelClass}>
+                Preferred date *
+              </label>
+              <input
+                id="viewing-date"
+                type="date"
+                required
+                min={new Date().toISOString().split('T')[0]}
+                value={date}
+                onChange={(event) => setDate(event.target.value)}
+                className={inputClass}
+              />
+            </div>
+
+            <div>
+              <span className={labelClass}>Preferred time slot *</span>
+              <div className="grid grid-cols-3 gap-2">
+                {VIEWING_TIME_SLOTS.map((slot) => {
+                  const isActive = timeSlot === slot;
+                  return (
                     <button
                       key={slot}
                       type="button"
                       onClick={() => setTimeSlot(slot)}
-                      className={`py-2 px-3 rounded-lg text-xs font-bold transition-all ${
-                        timeSlot === slot
-                          ? 'bg-[#0b1329] text-white shadow-sm ring-2 ring-amber-500/40'
-                          : 'bg-stone-50 hover:bg-stone-100 text-slate-700 border border-stone-200'
+                      aria-pressed={isActive}
+                      className={`flex items-center justify-center gap-1.5 rounded-lg px-3 py-2.5 text-[11px] font-bold transition-all ${
+                        isActive
+                          ? 'bg-ink-900 text-bone-50 shadow-sm ring-2 ring-gold-500/40'
+                          : 'border border-bone-300 bg-bone-50 text-ink-700 hover:bg-bone-100'
                       }`}
                     >
+                      <Clock className="h-3 w-3" />
                       {slot}
                     </button>
-                  ))}
-                </div>
+                  );
+                })}
               </div>
+            </div>
 
-              {/* User details */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                <div>
-                  <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">
-                    Your Full Name *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={userName}
-                    onChange={(e) => setUserName(e.target.value)}
-                    placeholder="e.g. Eleanor Vance"
-                    className="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-2 text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">
-                    Phone Number *
-                  </label>
-                  <input
-                    type="tel"
-                    required
-                    value={userPhone}
-                    onChange={(e) => setUserPhone(e.target.value)}
-                    placeholder="+1 (555) 000-0000"
-                    className="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-2 text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  />
-                </div>
-              </div>
-
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
-                <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">
-                  Email Address *
+                <label htmlFor="viewing-name" className={labelClass}>
+                  Full name *
                 </label>
                 <input
+                  id="viewing-name"
+                  type="text"
+                  required
+                  value={userName}
+                  onChange={(event) => setUserName(event.target.value)}
+                  placeholder="e.g. Ananya Iyer"
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label htmlFor="viewing-phone" className={labelClass}>
+                  Phone
+                </label>
+                <div className="relative">
+                  <Phone className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-bone-400" />
+                  <input
+                    id="viewing-phone"
+                    type="tel"
+                    value={userPhone}
+                    onChange={(event) => setUserPhone(event.target.value)}
+                    placeholder="+91 98200 00000"
+                    className={`${inputClass} pl-8`}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="viewing-email" className={labelClass}>
+                Email *
+              </label>
+              <div className="relative">
+                <Mail className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-bone-400" />
+                <input
+                  id="viewing-email"
                   type="email"
                   required
                   value={userEmail}
-                  onChange={(e) => setUserEmail(e.target.value)}
-                  placeholder="name@example.com"
-                  className="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-2 text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  onChange={(event) => setUserEmail(event.target.value)}
+                  placeholder="you@example.in"
+                  className={`${inputClass} pl-8`}
                 />
               </div>
+            </div>
 
-              <div>
-                <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">
-                  Special Notes / Accessibility Requests
-                </label>
+            <div>
+              <label htmlFor="viewing-notes" className={labelClass}>
+                Notes for the advisor
+              </label>
+              <div className="relative">
+                <FileText className="pointer-events-none absolute left-3 top-3.5 h-3.5 w-3.5 text-bone-400" />
                 <textarea
-                  rows={2}
+                  id="viewing-notes"
+                  rows={3}
                   value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Optional: financing status, specific features to inspect, or party size..."
-                  className="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-2 text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none"
-                ></textarea>
+                  onChange={(event) => setNotes(event.target.value)}
+                  placeholder="Loan status, party size, specific features to inspect, accessibility needs…"
+                  className={`${inputClass} resize-none pl-8`}
+                />
               </div>
+            </div>
 
-              <div className="pt-2">
-                <button
-                  id="submit-booking-btn"
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-[#d8a853] hover:bg-[#c9973e] text-slate-950 font-bold text-xs uppercase tracking-wider py-3 rounded-lg flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer disabled:opacity-50"
-                >
-                  <Calendar className="w-4 h-4" />
-                  <span>{loading ? 'Confirming Appointment...' : 'Confirm Private Viewing'}</span>
-                </button>
-              </div>
-            </form>
-          )}
-        </div>
+            <MagneticButton
+              id="submit-booking-btn"
+              variant="gold"
+              size="md"
+              type="submit"
+              disabled={loading}
+              className="w-full"
+            >
+              <Calendar className="h-4 w-4" />
+              {loading ? 'Confirming…' : 'Confirm Private Viewing'}
+            </MagneticButton>
+
+            <p className="flex items-start gap-2 text-[11px] leading-relaxed text-bone-500">
+              <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-bone-400" />
+              Your details are shared only with the advisor handling this listing. Cancellations are
+              free up to 12 hours before the appointment.
+            </p>
+          </form>
+        )}
       </div>
-    </div>
+    </Modal>
   );
 };

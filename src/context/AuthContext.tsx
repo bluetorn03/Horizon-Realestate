@@ -1,14 +1,15 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { 
-  User, 
-  signInWithPopup, 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword, 
-  signOut, 
-  updateProfile, 
-  onAuthStateChanged 
+import {
+  signInWithPopup,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut,
+  updateProfile,
+  onAuthStateChanged,
+  User,
 } from 'firebase/auth';
 import { auth, googleProvider } from '../lib/firebase';
+import { avatarImage } from '../lib/images';
 
 interface AuthContextType {
   user: User | null;
@@ -22,6 +23,19 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const DEMO_USERS = {
+  buyer: {
+    email: 'buyer.demo@horizonestates.in',
+    name: 'Aarav Mehta',
+    photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=256&q=80',
+  },
+  agent: {
+    email: 'advisor.demo@horizonestates.in',
+    name: 'Rhea Malhotra (Private Advisor)',
+    photo: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=256&q=80',
+  },
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -31,14 +45,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(currentUser);
       setLoading(false);
     });
-
     return () => unsubscribe();
   }, []);
 
   const signInWithGoogle = async () => {
     try {
       await signInWithPopup(auth, googleProvider);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Google sign-in error:', error);
       throw error;
     }
@@ -47,7 +60,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signInWithEmail = async (email: string, pass: string) => {
     try {
       await signInWithEmailAndPassword(auth, email, pass);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Email sign-in error:', error);
       throw error;
     }
@@ -55,14 +68,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signUpWithEmail = async (email: string, pass: string, displayName: string) => {
     try {
-      const res = await createUserWithEmailAndPassword(auth, email, pass);
-      if (res.user) {
-        await updateProfile(res.user, {
+      const credential = await createUserWithEmailAndPassword(auth, email, pass);
+      if (credential.user) {
+        await updateProfile(credential.user, {
           displayName,
-          photoURL: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(displayName)}`
+          photoURL: avatarImage('photo-1573496359142-b8d87734a5a2'),
         });
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Email sign-up error:', error);
       throw error;
     }
@@ -71,35 +84,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async () => {
     try {
       await signOut(auth);
-    } catch (error: any) {
-      console.error('Logout error:', error);
+    } catch (error) {
+      console.error('Sign-out error:', error);
       throw error;
     }
   };
 
+  /**
+   * One-click demo session. Creates the account on first use so the flow works
+   * against a brand-new Firebase project with no manual seeding.
+   */
   const demoLogin = async (role: 'buyer' | 'agent' = 'buyer') => {
-    // If not using real credentials, generate a demo user or sign in with test email
-    const demoEmail = role === 'agent' ? 'agent.demo@horizonestates.com' : 'buyer.demo@horizonestates.com';
-    const demoPass = 'DemoPassword123!';
-    const demoName = role === 'agent' ? 'Marcus Sterling (Agent)' : 'Sarah Jenkins';
-
+    const profile = DEMO_USERS[role];
+    const demoPass = 'Horizon@Demo2026';
     try {
-      await signInWithEmailAndPassword(auth, demoEmail, demoPass);
-    } catch (e) {
-      // If doesn't exist, create it
+      await signInWithEmailAndPassword(auth, profile.email, demoPass);
+    } catch {
       try {
-        const res = await createUserWithEmailAndPassword(auth, demoEmail, demoPass);
-        if (res.user) {
-          await updateProfile(res.user, {
-            displayName: demoName,
-            photoURL: role === 'agent' 
-              ? 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=256&q=80'
-              : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&q=80'
-          });
-        }
-      } catch (createErr) {
-        console.error('Demo user creation error:', createErr);
-        throw createErr;
+        const credential = await createUserWithEmailAndPassword(auth, profile.email, demoPass);
+        await updateProfile(credential.user, { displayName: profile.name, photoURL: profile.photo });
+      } catch (createError) {
+        console.error('Demo account creation error:', createError);
+        throw createError;
       }
     }
   };
@@ -113,7 +119,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signInWithEmail,
         signUpWithEmail,
         logout,
-        demoLogin
+        demoLogin,
       }}
     >
       {children}

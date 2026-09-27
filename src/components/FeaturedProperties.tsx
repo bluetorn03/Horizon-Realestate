@@ -1,7 +1,26 @@
 import React, { useState } from 'react';
-import { ArrowRight, Search, SlidersHorizontal, Plus, RefreshCw } from 'lucide-react';
-import type { Property, PropertyFilterState, PropertyCategory } from '../types';
+import {
+  ArrowRight,
+  Search,
+  SlidersHorizontal,
+  Plus,
+  RefreshCw,
+  Building2,
+  X,
+} from 'lucide-react';
+import type { Property, PropertyFilterState } from '../types';
 import { PropertyCard } from './PropertyCard';
+import { MagneticButton } from './MagneticButton';
+import { SplitText } from './SplitText';
+import {
+  FURNISHING_OPTIONS,
+  POSSESSION_OPTIONS,
+} from '../lib/locations';
+import {
+  MAX_PRICE_OPTIONS,
+  MIN_PRICE_OPTIONS,
+  formatINRCompact,
+} from '../lib/format';
 
 interface FeaturedPropertiesProps {
   properties: Property[];
@@ -17,6 +36,32 @@ interface FeaturedPropertiesProps {
   onToggleFavorite: (propertyId: string) => void;
   onResetFilters: () => void;
 }
+
+const CATEGORIES = [
+  { label: 'All', value: 'All' },
+  { label: 'Apartments', value: 'Apartment' },
+  { label: 'Villas', value: 'Villa' },
+  { label: 'Houses', value: 'House' },
+  { label: 'Plots', value: 'Plot' },
+  { label: 'Commercial', value: 'Commercial' },
+];
+
+const SORTS = [
+  { value: 'recommended', label: 'Featured first' },
+  { value: 'price-asc', label: 'Price: Low to High' },
+  { value: 'price-desc', label: 'Price: High to Low' },
+  { value: 'newest', label: 'Newest listings' },
+  { value: 'area-desc', label: 'Largest area first' },
+  { value: 'rate-asc', label: 'Best ₹ per sq ft' },
+];
+
+const BEDROOM_OPTIONS = [0, 1, 2, 3, 4, 5];
+const AREA_OPTIONS = [0, 500, 1000, 1500, 2000, 3000];
+
+const selectClass =
+  'w-full appearance-none rounded-lg border border-bone-300 bg-white px-3 py-2 text-xs font-medium text-ink-900 focus:border-gold-500 focus:outline-none focus:ring-2 focus:ring-gold-500/30';
+
+const labelClass = 'mb-1 block text-[10px] font-bold uppercase tracking-[0.16em] text-ink-700';
 
 export const FeaturedProperties: React.FC<FeaturedPropertiesProps> = ({
   properties,
@@ -34,215 +79,388 @@ export const FeaturedProperties: React.FC<FeaturedPropertiesProps> = ({
 }) => {
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
-  const categories: { label: string; value: string }[] = [
-    { label: 'All', value: 'All' },
-    { label: 'House', value: 'House' },
-    { label: 'Apartment', value: 'Apartment' },
-    { label: 'Plot', value: 'Plot' },
-    { label: 'Villa', value: 'Villa' },
-    { label: 'Commercial', value: 'Commercial' },
-  ];
+  const activeFilterCount =
+    (filters.listingType !== 'All' ? 1 : 0) +
+    (filters.minBedrooms > 0 ? 1 : 0) +
+    (filters.minArea > 0 ? 1 : 0) +
+    (filters.furnishing !== 'All' ? 1 : 0) +
+    (filters.possession !== 'All' ? 1 : 0) +
+    (filters.reraOnly ? 1 : 0) +
+    (filters.minPrice > 0 ? 1 : 0) +
+    (filters.maxPrice > 0 ? 1 : 0) +
+    (filters.location ? 1 : 0);
 
   return (
-    <section id="properties-section" className="py-16 sm:py-20 bg-stone-50 px-4 sm:px-8 border-b border-stone-200">
-      <div className="max-w-7xl mx-auto">
-        {/* Section Header matching reference */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
+    <section
+      id="properties-section"
+      className="border-b border-bone-200 bg-bone-50 px-4 py-20 sm:px-8 sm:py-24"
+    >
+      <div className="mx-auto max-w-7xl">
+        {/* Header */}
+        <div className="mb-8 flex flex-col items-start justify-between gap-6 md:flex-row md:items-end">
           <div>
-            <div className="text-[11px] font-bold tracking-[0.2em] text-amber-700 uppercase mb-1.5">
-              FEATURED PROPERTIES
-            </div>
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-950 font-serif-luxury tracking-tight">
-              Explore Our Exclusive Properties
-            </h2>
+            <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.28em] text-gold-600">
+              Available Now
+            </p>
+            <SplitText
+              as="h2"
+              text="Explore the current portfolio"
+              className="font-display text-3xl font-bold leading-tight tracking-tight text-ink-950 sm:text-4xl lg:text-5xl"
+            />
+            <p className="mt-3 max-w-lg text-sm leading-relaxed text-bone-500">
+              {loading
+                ? 'Loading verified residences from our marketplace…'
+                : `${properties.length} ${properties.length === 1 ? 'residence' : 'residences'} match your criteria — priced in ₹, measured in sq ft.`}
+            </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <button
+              type="button"
               id="filter-toggle-btn"
-              onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-md border border-stone-300 bg-white text-slate-700 hover:bg-stone-100 transition-colors"
+              onClick={() => setShowAdvancedFilters((open) => !open)}
+              aria-expanded={showAdvancedFilters}
+              className="inline-flex items-center gap-2 rounded-md border border-bone-300 bg-white px-3.5 py-2.5 text-[11px] font-bold uppercase tracking-[0.14em] text-ink-700 transition-colors hover:border-gold-400 hover:text-gold-700"
             >
-              <SlidersHorizontal className="w-3.5 h-3.5 text-amber-600" />
-              <span>Filters</span>
+              <SlidersHorizontal className="h-3.5 w-3.5 text-gold-600" />
+              Filters
+              {activeFilterCount > 0 && (
+                <span className="grid h-4 min-w-4 place-items-center rounded-full bg-gold-500 px-1 text-[10px] font-bold text-ink-950">
+                  {activeFilterCount}
+                </span>
+              )}
             </button>
 
-            <button
-              id="view-all-properties-btn"
-              onClick={onResetFilters}
-              className="inline-flex items-center gap-2 text-xs font-bold text-slate-900 hover:text-amber-700 uppercase tracking-wider transition-colors px-3 py-2 border border-slate-900 hover:border-amber-700 rounded-md"
-            >
-              <span>VIEW ALL PROPERTIES</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
+            <MagneticButton id="view-all-properties-btn" variant="outline" size="sm" onClick={onResetFilters}>
+              Reset
+              <ArrowRight className="h-3.5 w-3.5" />
+            </MagneticButton>
           </div>
         </div>
 
-        {/* Category Filter Pills matching reference categories */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-6 scrollbar-none">
-          {categories.map((cat) => (
-            <button
-              key={cat.value}
-              id={`cat-pill-${cat.value.toLowerCase()}`}
-              onClick={() => onFilterChange({ category: cat.value })}
-              className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all uppercase tracking-wider ${
-                filters.category === cat.value
-                  ? 'bg-[#0b1329] text-white shadow-md'
-                  : 'bg-white text-slate-700 hover:bg-stone-200/80 border border-stone-200'
-              }`}
-            >
-              {cat.label}
-            </button>
-          ))}
+        {/* Category pills */}
+        <div className="scrollbar-none mb-6 flex items-center gap-2 overflow-x-auto pb-2">
+          {CATEGORIES.map((category) => {
+            const isActive = filters.category === category.value;
+            return (
+              <button
+                key={category.value}
+                type="button"
+                id={`cat-pill-${category.value.toLowerCase()}`}
+                onClick={() => onFilterChange({ category: category.value })}
+                aria-pressed={isActive}
+                className={`whitespace-nowrap rounded-full px-4 py-2 text-[11px] font-bold uppercase tracking-[0.14em] transition-all duration-300 ${
+                  isActive
+                    ? 'bg-ink-900 text-bone-50 shadow-lux-md'
+                    : 'border border-bone-300 bg-white text-ink-700 hover:border-gold-400 hover:text-gold-700'
+                }`}
+              >
+                {category.label}
+              </button>
+            );
+          })}
         </div>
 
-        {/* Search & Secondary Filter Bar */}
-        <div className="bg-white rounded-xl p-4 border border-stone-200 shadow-xs mb-8">
-          <div className="flex flex-col md:flex-row gap-3 items-center justify-between">
-            {/* Search query input */}
+        {/* Search + sort */}
+        <div className="mb-8 rounded-xl border border-bone-300/70 bg-white p-4 shadow-lux-sm">
+          <div className="flex flex-col items-center gap-3 md:flex-row md:justify-between">
             <div className="relative w-full md:max-w-md">
               <input
                 id="search-keywords-input"
-                type="text"
+                type="search"
                 value={filters.searchQuery}
-                onChange={(e) => onFilterChange({ searchQuery: e.target.value })}
-                placeholder="Search by title, address, city or features..."
-                className="w-full pl-9 pr-4 py-2.5 bg-stone-50 border border-stone-200 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent font-medium"
+                onChange={(event) => onFilterChange({ searchQuery: event.target.value })}
+                placeholder="Search by project, locality, RERA number or amenity…"
+                className="w-full rounded-lg border border-bone-300 bg-bone-50 py-2.5 pl-9 pr-4 text-xs font-medium text-ink-900 focus:border-gold-500 focus:outline-none focus:ring-2 focus:ring-gold-500/30"
               />
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-bone-400" />
             </div>
 
-            {/* Sort Dropdown */}
-            <div className="flex items-center gap-3 w-full md:w-auto justify-end">
-              <span className="text-xs text-slate-500 whitespace-nowrap font-medium">Sort by:</span>
+            <div className="flex w-full items-center justify-end gap-3 md:w-auto">
+              <span className="whitespace-nowrap text-[11px] font-medium text-bone-500">Sort by</span>
               <select
                 id="sort-properties-select"
                 value={filters.sortBy}
-                onChange={(e) => onFilterChange({ sortBy: e.target.value as any })}
-                className="bg-stone-50 border border-stone-200 text-slate-900 text-xs rounded-lg px-3 py-2 font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500"
+                onChange={(event) =>
+                  onFilterChange({ sortBy: event.target.value as PropertyFilterState['sortBy'] })
+                }
+                className="rounded-lg border border-bone-300 bg-bone-50 px-3 py-2 text-xs font-semibold text-ink-900 focus:border-gold-500 focus:outline-none focus:ring-2 focus:ring-gold-500/30"
               >
-                <option value="recommended">Featured / Recommended</option>
-                <option value="price-asc">Price: Low to High</option>
-                <option value="price-desc">Price: High to Low</option>
-                <option value="newest">Newest Listed</option>
+                {SORTS.map((sort) => (
+                  <option key={sort.value} value={sort.value}>
+                    {sort.label}
+                  </option>
+                ))}
               </select>
 
               <button
+                type="button"
                 id="add-prop-section-btn"
                 onClick={onOpenAddProperty}
-                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold shadow-xs"
+                className="hidden items-center gap-1.5 rounded-lg bg-gold-500 px-3.5 py-2 text-[11px] font-bold uppercase tracking-[0.14em] text-ink-950 shadow-sm transition-colors hover:bg-gold-400 sm:inline-flex"
               >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Add Property</span>
+                <Plus className="h-3.5 w-3.5" />
+                List Property
               </button>
             </div>
           </div>
 
-          {/* Collapsible Advanced Filters */}
+          {/* Advanced filters */}
           {showAdvancedFilters && (
-            <div className="mt-4 pt-4 border-t border-stone-100 grid grid-cols-1 sm:grid-cols-3 gap-4 animate-in fade-in duration-200">
+            <div className="mt-5 grid grid-cols-1 gap-4 border-t border-bone-200 pt-5 sm:grid-cols-2 lg:grid-cols-4">
               <div>
-                <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">
+                <label htmlFor="filter-listing-type" className={labelClass}>
                   Listing Type
                 </label>
                 <select
+                  id="filter-listing-type"
                   value={filters.listingType}
-                  onChange={(e) => onFilterChange({ listingType: e.target.value })}
-                  className="w-full bg-stone-50 border border-stone-200 text-xs rounded-md px-3 py-2 text-slate-800"
+                  onChange={(event) => onFilterChange({ listingType: event.target.value })}
+                  className={selectClass}
                 >
-                  <option value="All">All Listing Types</option>
+                  <option value="All">All</option>
                   <option value="sale">For Sale</option>
                   <option value="rent">For Rent</option>
-                  <option value="commercial">Commercial</option>
+                  <option value="commercial">Commercial Lease</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">
-                  Minimum Bedrooms
+                <label htmlFor="filter-bedrooms" className={labelClass}>
+                  Configuration
                 </label>
                 <select
+                  id="filter-bedrooms"
                   value={filters.minBedrooms}
-                  onChange={(e) => onFilterChange({ minBedrooms: Number(e.target.value) })}
-                  className="w-full bg-stone-50 border border-stone-200 text-xs rounded-md px-3 py-2 text-slate-800"
+                  onChange={(event) => onFilterChange({ minBedrooms: Number(event.target.value) })}
+                  className={selectClass}
                 >
-                  <option value={0}>Any Bedrooms</option>
-                  <option value={1}>1+ Beds</option>
-                  <option value={2}>2+ Beds</option>
-                  <option value={3}>3+ Beds</option>
-                  <option value={4}>4+ Beds</option>
-                  <option value={5}>5+ Beds</option>
+                  {BEDROOM_OPTIONS.map((value) => (
+                    <option key={value} value={value}>
+                      {value === 0 ? 'Any BHK' : `${value}+ BHK`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label htmlFor="filter-area" className={labelClass}>
+                  Minimum Area
+                </label>
+                <select
+                  id="filter-area"
+                  value={filters.minArea}
+                  onChange={(event) => onFilterChange({ minArea: Number(event.target.value) })}
+                  className={selectClass}
+                >
+                  {AREA_OPTIONS.map((value) => (
+                    <option key={value} value={value}>
+                      {value === 0 ? 'Any area' : `${value.toLocaleString('en-IN')}+ sq ft`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label htmlFor="filter-furnishing" className={labelClass}>
+                  Furnishing
+                </label>
+                <select
+                  id="filter-furnishing"
+                  value={filters.furnishing}
+                  onChange={(event) => onFilterChange({ furnishing: event.target.value })}
+                  className={selectClass}
+                >
+                  <option value="All">Any</option>
+                  {FURNISHING_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label htmlFor="filter-possession" className={labelClass}>
+                  Possession
+                </label>
+                <select
+                  id="filter-possession"
+                  value={filters.possession}
+                  onChange={(event) => onFilterChange({ possession: event.target.value })}
+                  className={selectClass}
+                >
+                  <option value="All">Any stage</option>
+                  {POSSESSION_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label htmlFor="filter-min-price" className={labelClass}>
+                  Budget From
+                </label>
+                <select
+                  id="filter-min-price"
+                  value={filters.minPrice}
+                  onChange={(event) => onFilterChange({ minPrice: Number(event.target.value) })}
+                  className={selectClass}
+                >
+                  {MIN_PRICE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label htmlFor="filter-max-price" className={labelClass}>
+                  Budget To
+                </label>
+                <select
+                  id="filter-max-price"
+                  value={filters.maxPrice}
+                  onChange={(event) => onFilterChange({ maxPrice: Number(event.target.value) })}
+                  className={selectClass}
+                >
+                  {MAX_PRICE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
                 </select>
               </div>
 
               <div className="flex items-end">
                 <button
+                  type="button"
                   onClick={onResetFilters}
-                  className="w-full py-2 text-xs font-semibold text-slate-700 bg-stone-100 hover:bg-stone-200 rounded-md transition-colors flex items-center justify-center gap-1.5"
+                  className="flex w-full items-center justify-center gap-1.5 rounded-md bg-bone-100 py-2 text-[11px] font-bold uppercase tracking-[0.14em] text-ink-700 transition-colors hover:bg-bone-200"
                 >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  <span>Reset All Filters</span>
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  Reset All
                 </button>
               </div>
+
+              <label className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-bone-300 bg-bone-50 px-3 py-2 sm:col-span-2 lg:col-span-4">
+                <input
+                  id="filter-rera-only"
+                  type="checkbox"
+                  checked={filters.reraOnly}
+                  onChange={(event) => onFilterChange({ reraOnly: event.target.checked })}
+                  className="h-4 w-4 rounded border-bone-400 text-gold-600 focus:ring-gold-500"
+                />
+                <span className="text-xs font-semibold text-ink-800">
+                  Show RERA-registered projects only
+                </span>
+              </label>
             </div>
           )}
         </div>
 
-        {/* Properties Grid matching reference 4-card row layout */}
+        {/* Active budget summary */}
+        {(filters.minPrice > 0 || filters.maxPrice > 0) && (
+          <p className="mb-5 text-[11px] font-medium text-bone-500">
+            Budget:{' '}
+            <span className="font-bold text-ink-800">
+              {filters.minPrice > 0 ? formatINRCompact(filters.minPrice) : '₹0'} –{' '}
+              {filters.maxPrice > 0 ? formatINRCompact(filters.maxPrice) : 'no limit'}
+            </span>
+          </p>
+        )}
+
+        {/* Grid */}
         {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[1, 2, 3, 4].map((n) => (
-              <div key={n} className="bg-white rounded-xl overflow-hidden border border-stone-200 shadow-xs animate-pulse">
-                <div className="w-full h-52 bg-stone-200"></div>
-                <div className="p-4 space-y-3">
-                  <div className="h-4 bg-stone-200 rounded w-3/4"></div>
-                  <div className="h-3 bg-stone-100 rounded w-1/2"></div>
-                  <div className="h-6 bg-stone-100 rounded w-full"></div>
-                  <div className="h-5 bg-amber-100 rounded w-1/3"></div>
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {Array.from({ length: 8 }).map((_, index) => (
+              <div
+                key={index}
+                className="animate-pulse overflow-hidden rounded-xl border border-bone-200 bg-white shadow-lux-sm"
+              >
+                <div className="aspect-[4/3] w-full bg-bone-200" />
+                <div className="space-y-3 p-5">
+                  <div className="h-4 w-3/4 rounded bg-bone-200" />
+                  <div className="h-3 w-1/2 rounded bg-bone-100" />
+                  <div className="h-8 w-full rounded bg-bone-100" />
+                  <div className="h-6 w-1/3 rounded bg-gold-100" />
                 </div>
               </div>
             ))}
           </div>
         ) : properties.length === 0 ? (
-          <div className="bg-white rounded-2xl p-12 text-center border border-stone-200 max-w-xl mx-auto shadow-xs">
-            <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Search className="w-7 h-7" />
-            </div>
-            <h3 className="text-lg font-bold text-slate-900 font-serif-luxury">No properties found</h3>
-            <p className="text-xs text-slate-500 mt-2 max-w-sm mx-auto">
-              We couldn't find any properties matching your current filter criteria. Try adjusting your search or reset filters.
+          <div className="mx-auto max-w-xl rounded-2xl border border-bone-200 bg-white p-12 text-center shadow-lux-sm">
+            <span className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-full bg-gold-50 text-gold-600">
+              <Search className="h-7 w-7" />
+            </span>
+            <h3 className="font-display text-lg font-bold text-ink-900">No residences match yet</h3>
+            <p className="mx-auto mt-2 max-w-sm text-xs leading-relaxed text-bone-500">
+              Try widening the budget range, clearing the locality filter, or searching a different
+              city such as Thane or Hyderabad.
             </p>
-            <div className="mt-6 flex items-center justify-center gap-3">
-              <button
-                onClick={onResetFilters}
-                className="px-4 py-2 bg-slate-900 text-white text-xs font-semibold rounded-lg hover:bg-slate-800"
-              >
-                Reset Filters
-              </button>
-              <button
-                onClick={onOpenAddProperty}
-                className="px-4 py-2 bg-amber-600 text-white text-xs font-semibold rounded-lg hover:bg-amber-700"
-              >
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+              <MagneticButton variant="ink" size="sm" onClick={onResetFilters}>
+                <X className="h-3.5 w-3.5" />
+                Clear Filters
+              </MagneticButton>
+              <MagneticButton variant="gold" size="sm" onClick={onOpenAddProperty}>
+                <Plus className="h-3.5 w-3.5" />
                 List Your Property
-              </button>
+              </MagneticButton>
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div
+            className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+            data-reveal-stagger
+          >
             {properties.map((property) => (
-              <PropertyCard
-                key={property.id}
-                property={property}
-                onSelect={onSelectProperty}
-                onBookViewing={onBookViewing}
-                onEdit={onEditProperty}
-                onDelete={onDeleteProperty}
-                isFavorite={favorites.includes(property.id)}
-                onToggleFavorite={onToggleFavorite}
-              />
+              <div key={property.id} data-reveal-item>
+                <PropertyCard
+                  property={property}
+                  onSelect={onSelectProperty}
+                  onBookViewing={onBookViewing}
+                  onEdit={onEditProperty}
+                  onDelete={onDeleteProperty}
+                  isFavorite={favorites.includes(property.id)}
+                  onToggleFavorite={onToggleFavorite}
+                />
+              </div>
             ))}
           </div>
         )}
+
+        {/* Marketplace CTA */}
+        <div className="mt-16 overflow-hidden rounded-2xl border border-bone-300/70 bg-white shadow-lux-md">
+          <div className="grid grid-cols-1 items-center gap-8 p-8 sm:p-10 lg:grid-cols-3">
+            <div className="lg:col-span-2">
+              <span className="mb-3 inline-flex items-center gap-2 rounded-full bg-gold-50 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-gold-700">
+                <Building2 className="h-3.5 w-3.5" />
+                Owner Marketplace
+              </span>
+              <h3 className="font-display text-2xl font-bold leading-tight text-ink-950 sm:text-3xl">
+                Selling or letting your residence in India?
+              </h3>
+              <p className="mt-3 max-w-xl text-sm leading-relaxed text-bone-500">
+                List with Horizon Estates and reach pre-qualified buyers and tenants. You control the
+                ₹ pricing, the carpet-area figures and every viewing request — our advisors handle
+                diligence, photography and negotiation.
+              </p>
+            </div>
+            <div className="flex flex-col gap-3">
+              <MagneticButton id="footer-list-property-btn" variant="gold" size="md" onClick={onOpenAddProperty}>
+                <Plus className="h-4 w-4" />
+                List Your Property
+              </MagneticButton>
+              <p className="text-center text-[11px] text-bone-500">
+                Free listing · No brokerage from owners
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
   );

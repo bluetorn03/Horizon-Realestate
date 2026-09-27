@@ -1,6 +1,6 @@
 {
-  "name": "Horizon Estates - Luxury Real Estate",
-  "description": "Modern and premium real estate platform for browsing, listing, and booking viewings for luxury houses, apartments, and plots.",
+  "name": "Horizon Estates - Luxury Indian Real Estate",
+  "description": "Premium Indian real-estate platform to discover, list and book private viewings of residences in Mumbai, Navi Mumbai, Thane, Pune, Bengaluru, Hyderabad, Delhi NCR and Goa. Prices in INR with carpet area, BHK, RERA, possession and maintenance transparency.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

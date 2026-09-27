@@ -1,15 +1,21 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { AnimatePresence } from 'motion/react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Navbar } from './components/Navbar';
 import { HeroSection } from './components/HeroSection';
 import { TrustBadges } from './components/TrustBadges';
+import { PropertyMarquee } from './components/PropertyMarquee';
 import { FeaturedProperties } from './components/FeaturedProperties';
 import { StatsCounter } from './components/StatsCounter';
+import { ArchitectureVisualizer } from './components/ArchitectureVisualizer';
+import { HorizontalStory } from './components/HorizontalStory';
 import { AboutSection } from './components/AboutSection';
 import { ServicesSection } from './components/ServicesSection';
 import { TestimonialsSection } from './components/TestimonialsSection';
 import { ContactSection } from './components/ContactSection';
 import { Footer } from './components/Footer';
+import { Preloader } from './components/Preloader';
+import { CursorGlow } from './components/CursorGlow';
 
 import { PropertyDetailsModal } from './components/PropertyDetailsModal';
 import { BookViewingModal } from './components/BookViewingModal';
@@ -17,334 +23,384 @@ import { AddEditPropertyModal } from './components/AddEditPropertyModal';
 import { UserDashboardModal } from './components/UserDashboardModal';
 import { AuthModal } from './components/AuthModal';
 
-import type { Property, PropertyFilterState, Viewing } from './types';
+import type { Property, PropertyFilterState, Viewing, DashboardTab } from './types';
 import { fetchAllProperties, deleteProperty } from './lib/firebase';
+import { getLenis, scrollToSection } from './lib/scroll';
+import { initScrollAnimations } from './lib/reveal';
+import { INDIAN_CITIES } from './lib/locations';
+
+const DEFAULT_FILTERS: PropertyFilterState = {
+  searchQuery: '',
+  category: 'All',
+  listingType: 'All',
+  location: '',
+  minPrice: 0,
+  maxPrice: 0,
+  minBedrooms: 0,
+  minArea: 0,
+  furnishing: 'All',
+  possession: 'All',
+  reraOnly: false,
+  sortBy: 'recommended',
+};
+
+const CITY_ALIASES = INDIAN_CITIES.flatMap((city) => [city.name, ...city.microMarkets]);
 
 function MainApp() {
   const { user } = useAuth();
 
-  // Properties state
+  const [appReady, setAppReady] = useState(false);
+  const handlePreloaderComplete = useCallback(() => setAppReady(true), []);
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filters, setFilters] = useState<PropertyFilterState>(DEFAULT_FILTERS);
 
-  // Filters state
-  const [filters, setFilters] = useState<PropertyFilterState>({
-    searchQuery: '',
-    category: 'All',
-    listingType: 'All',
-    location: '',
-    minPrice: 0,
-    maxPrice: 100000000,
-    minBedrooms: 0,
-    sortBy: 'recommended',
-  });
-
-  // Favorites state (persisted locally & synced)
   const [favorites, setFavorites] = useState<string[]>(() => {
     try {
-      const saved = localStorage.getItem('horizon_favorites');
-      return saved ? JSON.parse(saved) : [];
+      const saved = window.localStorage.getItem('horizon_favorites');
+      const parsed = saved ? JSON.parse(saved) : [];
+      return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === 'string') : [];
     } catch {
       return [];
     }
   });
 
-  // Modals state
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
   const [bookingProperty, setBookingProperty] = useState<Property | null>(null);
   const [propertyToEdit, setPropertyToEdit] = useState<Property | null>(null);
   const [showAddEditModal, setShowAddEditModal] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showDashboardModal, setShowDashboardModal] = useState(false);
-  const [dashboardTab, setDashboardTab] = useState<'listings' | 'viewings' | 'inquiries' | 'favorites'>('listings');
+  const [dashboardTab, setDashboardTab] = useState<DashboardTab>('listings');
 
-  // Load properties from Firestore on mount
-  const loadProperties = async () => {
-    setLoading(true);
-    try {
-      const data = await fetchAllProperties();
-      setProperties(data);
-    } catch (err) {
-      console.error('Failed to load properties:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  /* ---------------- Initialisation ---------------- */
 
   useEffect(() => {
-    loadProperties();
+    // Start smooth scrolling as early as possible.
+    getLenis();
+    const timer = window.setTimeout(() => setAppReady(true), 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
-  // Save favorites to localStorage
+  useEffect(() => {
+    let cancelled = false;
+
+    const load = async () => {
+      setLoading(true);
+      try {
+        const data = await fetchAllProperties();
+        if (!cancelled) setProperties(data);
+      } catch (error) {
+        console.error('Failed to load properties:', error);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Initialise scroll choreography once the listing grid has rendered.
+  useEffect(() => {
+    if (loading) return;
+    const frame = requestAnimationFrame(() => initScrollAnimations());
+    return () => cancelAnimationFrame(frame);
+  }, [loading, properties.length]);
+
   useEffect(() => {
     try {
-      localStorage.setItem('horizon_favorites', JSON.stringify(favorites));
-    } catch (e) {
-      console.error('Failed saving favorites to localStorage:', e);
+      window.localStorage.setItem('horizon_favorites', JSON.stringify(favorites));
+    } catch (error) {
+      console.error('Unable to persist shortlist:', error);
     }
   }, [favorites]);
 
-  const handleToggleFavorite = (propertyId: string) => {
-    setFavorites((prev) =>
-      prev.includes(propertyId) ? prev.filter((id) => id !== propertyId) : [...prev, propertyId]
-    );
-  };
+  /* ---------------- Derived data ---------------- */
 
-  // Distinct locations list for hero search dropdown
   const locationsList = useMemo(() => {
-    const locSet = new Set<string>();
-    properties.forEach((p) => {
-      if (p.location) locSet.add(p.location);
-      else if (p.city) locSet.add(p.city);
+    const set = new Set<string>();
+    properties.forEach((property) => {
+      if (property.location) set.add(property.location);
+      if (property.city) set.add(property.city);
     });
-    return Array.from(locSet);
+    return Array.from(set);
   }, [properties]);
 
-  // Filtered & Sorted properties
   const filteredProperties = useMemo(() => {
-    return properties
-      .filter((p) => {
-        // 1. Search Query
-        if (filters.searchQuery.trim()) {
-          const query = filters.searchQuery.toLowerCase();
-          const matchTitle = p.title.toLowerCase().includes(query);
-          const matchDesc = p.description.toLowerCase().includes(query);
-          const matchLoc = (p.location || '').toLowerCase().includes(query);
-          const matchCity = (p.city || '').toLowerCase().includes(query);
-          const matchAddress = (p.address || '').toLowerCase().includes(query);
-          const matchCategory = p.category.toLowerCase().includes(query);
-          const matchAmenities = (p.amenities || []).some((a) => a.toLowerCase().includes(query));
-          if (!matchTitle && !matchDesc && !matchLoc && !matchCity && !matchAddress && !matchCategory && !matchAmenities) {
-            return false;
-          }
-        }
+    const query = filters.searchQuery.trim().toLowerCase();
 
-        // 2. Category
-        if (filters.category !== 'All') {
-          if (p.category.toLowerCase() !== filters.category.toLowerCase()) {
-            // Check alias for House / Villa
-            if (filters.category === 'House' && p.category === 'Villa') {
-              // allow
-            } else {
-              return false;
-            }
-          }
-        }
+    const matchesQuery = (property: Property) => {
+      if (!query) return true;
+      return [
+        property.title,
+        property.description,
+        property.location,
+        property.city,
+        property.address,
+        property.category,
+        property.rera ?? '',
+        ...(property.amenities || []),
+      ]
+        .join(' ')
+        .toLowerCase()
+        .includes(query);
+    };
 
-        // 3. Listing Type
-        if (filters.listingType !== 'All') {
-          if (p.listingType.toLowerCase() !== filters.listingType.toLowerCase()) {
-            return false;
-          }
-        }
+    const filtered = properties.filter((property) => {
+      if (!matchesQuery(property)) return false;
 
-        // 4. Location
-        if (filters.location) {
-          const locFilter = filters.location.toLowerCase();
-          const propLoc = (p.location || p.city || '').toLowerCase();
-          if (!propLoc.includes(locFilter)) {
-            return false;
-          }
-        }
+      if (filters.category !== 'All') {
+        const isMatch =
+          property.category.toLowerCase() === filters.category.toLowerCase() ||
+          (filters.category === 'House' && property.category === 'Villa');
+        if (!isMatch) return false;
+      }
 
-        // 5. Min Price
-        if (filters.minPrice > 0 && p.price < filters.minPrice) {
-          return false;
-        }
+      if (filters.listingType !== 'All' && property.listingType !== filters.listingType) {
+        return false;
+      }
 
-        // 6. Max Price
-        if (filters.maxPrice < 100000000 && p.price > filters.maxPrice) {
-          return false;
-        }
+      if (filters.location) {
+        const needle = filters.location.toLowerCase();
+        const haystack = [property.location, property.city, property.address]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
+        if (!haystack.includes(needle)) return false;
+      }
 
-        // 7. Bedrooms
-        if (filters.minBedrooms > 0 && p.bedrooms < filters.minBedrooms) {
-          return false;
-        }
+      if (filters.minPrice > 0 && property.price < filters.minPrice) return false;
+      if (filters.maxPrice > 0 && property.price > filters.maxPrice) return false;
+      if (filters.minBedrooms > 0 && property.bedrooms < filters.minBedrooms) return false;
+      if (filters.minArea > 0 && property.sqft < filters.minArea) return false;
+      if (filters.furnishing !== 'All' && property.furnishing !== filters.furnishing) return false;
+      if (filters.possession !== 'All' && property.possession !== filters.possession) return false;
+      if (filters.reraOnly && !property.rera) return false;
 
-        return true;
-      })
-      .sort((a, b) => {
-        if (filters.sortBy === 'price-asc') {
+      return true;
+    });
+
+    const byDate = (a: Property, b: Property) =>
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+
+    return [...filtered].sort((a, b) => {
+      switch (filters.sortBy) {
+        case 'price-asc':
           return a.price - b.price;
-        }
-        if (filters.sortBy === 'price-desc') {
+        case 'price-desc':
           return b.price - a.price;
+        case 'newest':
+          return byDate(a, b);
+        case 'area-desc':
+          return (b.sqft || 0) - (a.sqft || 0);
+        case 'rate-asc': {
+          const rateA = a.sqft ? a.price / a.sqft : Number.POSITIVE_INFINITY;
+          const rateB = b.sqft ? b.price / b.sqft : Number.POSITIVE_INFINITY;
+          return rateA - rateB;
         }
-        if (filters.sortBy === 'newest') {
-          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-        }
-        // Recommended: Featured first, then newest
-        if (a.featured && !b.featured) return -1;
-        if (!a.featured && b.featured) return 1;
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      });
+        default:
+          if (Boolean(a.featured) !== Boolean(b.featured)) return a.featured ? -1 : 1;
+          return byDate(a, b);
+      }
+    });
   }, [properties, filters]);
 
-  const handleFilterChange = (newFilters: Partial<PropertyFilterState>) => {
-    setFilters((prev) => ({ ...prev, ...newFilters }));
-  };
+  /* ---------------- Handlers ---------------- */
 
-  const handleResetFilters = () => {
-    setFilters({
-      searchQuery: '',
-      category: 'All',
-      listingType: 'All',
-      location: '',
-      minPrice: 0,
-      maxPrice: 100000000,
-      minBedrooms: 0,
-      sortBy: 'recommended',
+  const handleFilterChange = useCallback((changes: Partial<PropertyFilterState>) => {
+    setFilters((previous) => ({ ...previous, ...changes }));
+  }, []);
+
+  const handleResetFilters = useCallback(() => setFilters(DEFAULT_FILTERS), []);
+
+  const handleScrollToSection = useCallback((sectionId: string) => {
+    scrollToSection(sectionId, 0);
+  }, []);
+
+  const handleSelectLocation = useCallback((city: string) => {
+    const needle = city.toLowerCase();
+    const isKnown = CITY_ALIASES.some((alias) => alias.toLowerCase() === needle);
+    setFilters((previous) => ({
+      ...previous,
+      location: isKnown ? city : previous.location,
+      searchQuery: isKnown ? '' : previous.searchQuery,
+    }));
+    scrollToSection('properties-section', 0);
+  }, []);
+
+  const handleSelectCategory = useCallback((category: string) => {
+    setFilters((previous) => ({ ...previous, category }));
+  }, []);
+
+  const handleToggleFavorite = useCallback((propertyId: string) => {
+    setFavorites((previous) =>
+      previous.includes(propertyId)
+        ? previous.filter((id) => id !== propertyId)
+        : [...previous, propertyId],
+    );
+  }, []);
+
+  const requireAuth = useCallback((action: () => void) => {
+    if (!user) {
+      setShowAuthModal(true);
+      return;
+    }
+    action();
+  }, [user]);
+
+  const handleOpenAddProperty = useCallback(() => {
+    requireAuth(() => {
+      setPropertyToEdit(null);
+      setShowAddEditModal(true);
     });
-  };
+  }, [requireAuth]);
 
-  const handleScrollToSection = (sectionId: string) => {
-    const el = document.getElementById(sectionId);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  };
+  const handleOpenEditProperty = useCallback(
+    (property: Property) => {
+      requireAuth(() => {
+        setPropertyToEdit(property);
+        setShowAddEditModal(true);
+      });
+    },
+    [requireAuth],
+  );
 
-  // Property Actions
-  const handleOpenAddProperty = () => {
-    if (!user) {
-      setShowAuthModal(true);
-      return;
-    }
-    setPropertyToEdit(null);
-    setShowAddEditModal(true);
-  };
-
-  const handleOpenEditProperty = (prop: Property) => {
-    if (!user) {
-      setShowAuthModal(true);
-      return;
-    }
-    setPropertyToEdit(prop);
-    setShowAddEditModal(true);
-  };
-
-  const handleDeleteProperty = async (prop: Property) => {
-    if (!user || prop.ownerId !== user.uid) return;
-    if (window.confirm(`Are you sure you want to delete "${prop.title}"? This action cannot be undone.`)) {
+  const handleDeleteProperty = useCallback(
+    async (property: Property) => {
+      if (!user || property.ownerId !== user.uid) return;
+      if (!window.confirm(`Delete “${property.title}”? This cannot be undone.`)) return;
       try {
-        await deleteProperty(prop.id);
-        setProperties((prev) => prev.filter((p) => p.id !== prop.id));
-        if (selectedProperty?.id === prop.id) {
-          setSelectedProperty(null);
-        }
-      } catch (err) {
-        console.error('Error deleting property:', err);
-        alert('Failed to delete property listing. Please try again.');
+        await deleteProperty(property.id);
+        setProperties((previous) => previous.filter((item) => item.id !== property.id));
+        setSelectedProperty((current) => (current?.id === property.id ? null : current));
+      } catch (error) {
+        console.error('Error deleting property:', error);
+        window.alert('Could not delete the listing. Please try again.');
       }
-    }
-  };
+    },
+    [user],
+  );
 
-  const handlePropertySaved = (savedProp: Property, isEdit: boolean) => {
-    if (isEdit) {
-      setProperties((prev) => prev.map((p) => (p.id === savedProp.id ? savedProp : p)));
-      if (selectedProperty?.id === savedProp.id) {
-        setSelectedProperty(savedProp);
-      }
-    } else {
-      setProperties((prev) => [savedProp, ...prev]);
-    }
+  const handlePropertySaved = useCallback((saved: Property, isEdit: boolean) => {
+    setProperties((previous) =>
+      isEdit
+        ? previous.map((item) => (item.id === saved.id ? saved : item))
+        : [saved, ...previous],
+    );
+    setSelectedProperty((current) => (current?.id === saved.id ? saved : current));
     setShowAddEditModal(false);
-  };
+    setPropertyToEdit(null);
+  }, []);
 
-  const handleOpenBookViewing = (prop: Property) => {
-    if (!user) {
-      setShowAuthModal(true);
-      return;
-    }
-    setBookingProperty(prop);
-  };
+  const handleOpenBookViewing = useCallback(
+    (property: Property) => {
+      requireAuth(() => setBookingProperty(property));
+    },
+    [requireAuth],
+  );
 
-  const handleOpenDashboard = (tab: 'listings' | 'viewings' | 'inquiries' | 'favorites' = 'listings') => {
-    if (!user) {
-      setShowAuthModal(true);
-      return;
-    }
-    setDashboardTab(tab);
-    setShowDashboardModal(true);
-  };
+  const handleOpenDashboard = useCallback(
+    (tab: DashboardTab = 'listings') => {
+      requireAuth(() => {
+        setDashboardTab(tab);
+        setShowDashboardModal(true);
+      });
+    },
+    [requireAuth],
+  );
+
+  /* ---------------- Render ---------------- */
 
   return (
-    <div className="min-h-screen flex flex-col bg-stone-50 text-slate-900 font-sans">
-      {/* 1. Header & Navigation */}
-      <Navbar
-        onOpenAuth={() => setShowAuthModal(true)}
-        onOpenAddProperty={handleOpenAddProperty}
-        onOpenDashboard={handleOpenDashboard}
-        onSelectCategory={(cat) => handleFilterChange({ category: cat })}
-        onScrollToSection={handleScrollToSection}
-        favoritesCount={favorites.length}
-        onOpenFavorites={() => handleOpenDashboard('favorites')}
-      />
+    <>
+      <AnimatePresence>
+        {!appReady && <Preloader onComplete={handlePreloaderComplete} />}
+      </AnimatePresence>
 
-      <main className="flex-grow">
-        {/* 2. Hero Section matching reference design */}
-        <HeroSection
-          filters={filters}
-          onFilterChange={handleFilterChange}
-          onSearch={() => handleScrollToSection('properties-section')}
-          onExploreClick={() => handleScrollToSection('properties-section')}
-          onLearnMoreClick={() => handleScrollToSection('about-section')}
-          locationsList={locationsList}
-        />
+      <CursorGlow />
 
-        {/* 3. 4 Trust Badges Strip matching reference */}
-        <TrustBadges />
-
-        {/* 4. Featured Properties Grid matching reference 4-card row layout */}
-        <FeaturedProperties
-          properties={filteredProperties}
-          loading={loading}
-          filters={filters}
-          onFilterChange={handleFilterChange}
-          onSelectProperty={(prop) => setSelectedProperty(prop)}
-          onBookViewing={handleOpenBookViewing}
-          onEditProperty={handleOpenEditProperty}
-          onDeleteProperty={handleDeleteProperty}
+      <div className="flex min-h-[100svh] flex-col bg-bone-50 text-ink-900">
+        <Navbar
+          onOpenAuth={() => setShowAuthModal(true)}
           onOpenAddProperty={handleOpenAddProperty}
-          favorites={favorites}
-          onToggleFavorite={handleToggleFavorite}
-          onResetFilters={handleResetFilters}
+          onOpenDashboard={handleOpenDashboard}
+          onSelectCategory={handleSelectCategory}
+          onSelectLocation={handleSelectLocation}
+          onScrollToSection={handleScrollToSection}
+          favoritesCount={favorites.length}
+          onOpenFavorites={() => handleOpenDashboard('favorites')}
         />
 
-        {/* 5. Counter Stats Strip matching reference dark navy bar */}
-        <StatsCounter />
+        <main className="flex-grow">
+          <HeroSection
+            filters={filters}
+            onFilterChange={handleFilterChange}
+            onSearch={() => scrollToSection('properties-section')}
+            onExploreClick={() => scrollToSection('properties-section')}
+            onLearnMoreClick={() => scrollToSection('about-section')}
+            locationsList={locationsList}
+          />
 
-        {/* 6. About Us Section matching reference video & narrative */}
-        <AboutSection
-          onLearnMore={() => handleScrollToSection('contact-section')}
+          <TrustBadges />
+
+          <PropertyMarquee
+            properties={properties}
+            favorites={favorites}
+            onSelectProperty={setSelectedProperty}
+            onBookViewing={handleOpenBookViewing}
+            onEditProperty={handleOpenEditProperty}
+            onDeleteProperty={handleDeleteProperty}
+            onToggleFavorite={handleToggleFavorite}
+          />
+
+          <FeaturedProperties
+            properties={filteredProperties}
+            loading={loading}
+            filters={filters}
+            onFilterChange={handleFilterChange}
+            onSelectProperty={setSelectedProperty}
+            onBookViewing={handleOpenBookViewing}
+            onEditProperty={handleOpenEditProperty}
+            onDeleteProperty={handleDeleteProperty}
+            onOpenAddProperty={handleOpenAddProperty}
+            favorites={favorites}
+            onToggleFavorite={handleToggleFavorite}
+            onResetFilters={handleResetFilters}
+          />
+
+          <StatsCounter />
+
+          <ArchitectureVisualizer />
+
+          <HorizontalStory onSelectLocation={handleSelectLocation} />
+
+          <AboutSection onLearnMore={() => scrollToSection('contact-section')} />
+
+          <ServicesSection
+            onSelectCategory={(category) => {
+              handleSelectCategory(category);
+              scrollToSection('properties-section');
+            }}
+            onOpenAddProperty={handleOpenAddProperty}
+          />
+
+          <TestimonialsSection />
+
+          <ContactSection />
+        </main>
+
+        <Footer
+          onScrollToSection={handleScrollToSection}
+          onSelectCategory={handleSelectCategory}
+          onSelectLocation={handleSelectLocation}
         />
+      </div>
 
-        {/* 7. Real Estate Solutions & Services */}
-        <ServicesSection
-          onSelectCategory={(cat) => {
-            handleFilterChange({ category: cat });
-            handleScrollToSection('properties-section');
-          }}
-          onOpenAddProperty={handleOpenAddProperty}
-        />
+      {/* ==================== Overlays ==================== */}
 
-        {/* 8. Client Testimonials matching reference layout */}
-        <TestimonialsSection />
-
-        {/* 9. Private Advisory & Contact Section */}
-        <ContactSection />
-      </main>
-
-      {/* 10. Dark Luxury Footer matching reference design */}
-      <Footer
-        onScrollToSection={handleScrollToSection}
-        onSelectCategory={(cat) => handleFilterChange({ category: cat })}
-      />
-
-      {/* ================= MODALS ================= */}
-
-      {/* Dedicated Property Details Modal */}
       {selectedProperty && (
         <PropertyDetailsModal
           property={selectedProperty}
@@ -357,19 +413,17 @@ function MainApp() {
         />
       )}
 
-      {/* Book Private Viewing Modal */}
       {bookingProperty && (
         <BookViewingModal
           property={bookingProperty}
           onClose={() => setBookingProperty(null)}
           onOpenAuth={() => setShowAuthModal(true)}
-          onViewingBooked={(viewing: Viewing) => {
-            // viewing confirmed
+          onViewingBooked={(_viewing: Viewing) => {
+            /* Booking confirmed — dashboard reflects it on next open. */
           }}
         />
       )}
 
-      {/* Add / Edit Property Modal */}
       {showAddEditModal && (
         <AddEditPropertyModal
           propertyToEdit={propertyToEdit}
@@ -382,37 +436,22 @@ function MainApp() {
         />
       )}
 
-      {/* Member Management Dashboard Modal */}
       {showDashboardModal && user && (
         <UserDashboardModal
           initialTab={dashboardTab}
           properties={properties}
           favorites={favorites}
           onClose={() => setShowDashboardModal(false)}
-          onSelectProperty={(prop) => {
-            setSelectedProperty(prop);
-            setShowDashboardModal(false);
-          }}
-          onEditProperty={(prop) => {
-            setShowDashboardModal(false);
-            handleOpenEditProperty(prop);
-          }}
+          onSelectProperty={setSelectedProperty}
+          onEditProperty={handleOpenEditProperty}
           onDeleteProperty={handleDeleteProperty}
-          onOpenAddProperty={() => {
-            setShowDashboardModal(false);
-            handleOpenAddProperty();
-          }}
+          onOpenAddProperty={handleOpenAddProperty}
           onToggleFavorite={handleToggleFavorite}
         />
       )}
 
-      {/* Authentication Modal */}
-      {showAuthModal && (
-        <AuthModal
-          onClose={() => setShowAuthModal(false)}
-        />
-      )}
-    </div>
+      {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
+    </>
   );
 }
 

@@ -1,34 +1,400 @@
 @import "tailwindcss";
 
+/* ==========================================================================
+   Design tokens — premium Indian luxury real estate
+   Elegant neutral palette (warm bone / stone) with a refined gold accent and
+   a deep ink navy for editorial contrast.
+   ========================================================================== */
+@theme {
+  --color-ink-950: #060b16;
+  --color-ink-900: #0b1220;
+  --color-ink-800: #131c2e;
+  --color-ink-700: #1d283d;
+  --color-ink-600: #2b3a54;
+  --color-ink-500: #46587a;
+
+  --color-bone-50: #fbf9f6;
+  --color-bone-100: #f5f1ea;
+  --color-bone-200: #eae3d7;
+  --color-bone-300: #ddd3c2;
+  --color-bone-400: #c7b9a3;
+  --color-bone-500: #a99a83;
+
+  --color-gold-200: #f2e4c2;
+  --color-gold-300: #e3c988;
+  --color-gold-400: #d3b25f;
+  --color-gold-500: #b08d3f;
+  --color-gold-600: #95762f;
+  --color-gold-700: #755c24;
+
+  --color-sage-500: #4a6152;
+  --color-sage-600: #3a4e41;
+
+  --font-display: "Playfair Display", Georgia, Cambria, "Times New Roman", Times, serif;
+  --font-sans: "Plus Jakarta Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  --font-brand: "Cinzel", Georgia, Cambria, "Times New Roman", Times, serif;
+
+  --shadow-lux-sm: 0 1px 2px rgb(11 18 32 / 0.06), 0 2px 8px rgb(11 18 32 / 0.04);
+  --shadow-lux-md: 0 2px 4px rgb(11 18 32 / 0.05), 0 12px 28px -8px rgb(11 18 32 / 0.12);
+  --shadow-lux-lg: 0 4px 8px rgb(11 18 32 / 0.05), 0 28px 60px -18px rgb(11 18 32 / 0.22);
+
+  --ease-lux: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ==========================================================================
+   Base
+   ========================================================================== */
 @layer base {
-  body {
-    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  * {
+    border-color: var(--color-bone-300);
   }
 
-  h1, h2, h3, .font-serif-luxury {
-    font-family: 'Playfair Display', Georgia, Cambria, 'Times New Roman', Times, serif;
+  html {
+    scroll-behavior: auto; /* Lenis owns scrolling */
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: var(--color-bone-50);
+    color: var(--color-ink-900);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  .font-display {
+    font-family: var(--font-display);
+    letter-spacing: -0.015em;
   }
 
   .font-brand {
-    font-family: 'Cinzel', serif;
+    font-family: var(--font-brand);
+  }
+
+  /* Legacy alias kept for existing markup. */
+  .font-serif-luxury {
+    font-family: var(--font-display);
+  }
+
+  ::selection {
+    background: var(--color-gold-500);
+    color: #fff;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-gold-500);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+
+  button,
+  a {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  img {
+    max-width: 100%;
+    height: auto;
   }
 }
 
-/* Custom scrollbar */
+/* ==========================================================================
+   Lenis smooth scrolling
+   ========================================================================== */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+/* ==========================================================================
+   Scrollbar
+   ========================================================================== */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: var(--color-bone-100);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 4px;
+  background: var(--color-bone-400);
+  border-radius: 999px;
+  border: 2px solid var(--color-bone-100);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: var(--color-gold-500);
+}
+
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+/* ==========================================================================
+   Motion primitives
+   ========================================================================== */
+.tilt-3d {
+  transform: perspective(var(--tilt-perspective, 1000px)) rotateX(var(--tilt-rx, 0deg))
+    rotateY(var(--tilt-ry, 0deg)) scale(var(--tilt-scale, 1));
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+/*
+ * Property card shell — composes the pointer-driven 3D tilt with the
+ * scroll-driven marquee transform (lift / rotate / scale / opacity) that the
+ * PropertyMarquee writes onto the same element. Both layers read CSS custom
+ * properties, so there is never more than one transform write per frame.
+ */
+.property-card-shell {
+  transform: perspective(var(--tilt-perspective, 1000px))
+    translate3d(0, var(--card-lift, 0px), 0)
+    rotateX(var(--tilt-rx, 0deg))
+    rotateY(calc(var(--tilt-ry, 0deg) + var(--card-rotate, 0deg)))
+    scale(calc(var(--tilt-scale, 1) * var(--card-scale, 1)));
+  transform-style: preserve-3d;
+  will-change: transform, opacity;
+  opacity: var(--card-opacity, 1);
+}
+
+.tilt-layer {
+  transform: translateZ(28px);
+}
+
+/* Pointer-tracked sheen for premium cards. */
+.card-glare {
+  background: radial-gradient(
+    340px circle at var(--glare-x, 50%) var(--glare-y, 50%),
+    rgba(255, 255, 255, 0.18),
+    transparent 62%
+  );
+  opacity: 0;
+  transition: opacity 420ms var(--ease-lux);
+  pointer-events: none;
+}
+
+.group:hover .card-glare,
+.property-card-shell:hover .card-glare {
+  opacity: 1;
+}
+
+.magnetic {
+  transform: translate3d(var(--mag-x, 0px), var(--mag-y, 0px), 0);
+  will-change: transform;
+}
+
+.magnetic-label {
+  display: inline-flex;
+  transform: translate3d(var(--mag-label-x, 0px), var(--mag-label-y, 0px), 0);
+}
+
+/* Editorial image mask reveal */
+.mask-reveal {
+  clip-path: inset(0% 0% 0% 0%);
+}
+
+.hairline {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--color-bone-300) 18%,
+    var(--color-bone-300) 82%,
+    transparent
+  );
+  height: 1px;
+}
+
+/* Warm architectural wash — never a neon gradient. */
+.wash-hero {
+  background:
+    radial-gradient(120% 90% at 78% 12%, rgb(176 141 63 / 0.22), transparent 60%),
+    radial-gradient(90% 70% at 12% 88%, rgb(19 28 46 / 0.55), transparent 65%),
+    linear-gradient(180deg, #0b1220 0%, #101a2d 55%, #0b1220 100%);
+}
+
+.wash-stone {
+  background: linear-gradient(180deg, var(--color-bone-50) 0%, var(--color-bone-100) 100%);
+}
+
+.wash-ink {
+  background: linear-gradient(180deg, var(--color-ink-900) 0%, var(--color-ink-950) 100%);
+}
+
+/* ==========================================================================
+   Utilities
+   ========================================================================== */
+@utility text-balance-tight {
+  text-wrap: balance;
+  letter-spacing: -0.02em;
+}
+
+@utility no-tap-highlight {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ==========================================================================
+   Overlays / modals
+   ========================================================================== */
+@keyframes overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(22px) scale(0.975);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.modal-overlay {
+  animation: overlay-in 300ms var(--ease-lux) both;
+}
+
+.modal-panel {
+  animation: panel-in 460ms var(--ease-lux) both;
+}
+
+/* ==========================================================================
+   Marquee systems
+   ========================================================================== */
+@keyframes marquee-x {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+@keyframes marquee-x-reverse {
+  from {
+    transform: translate3d(-50%, 0, 0);
+  }
+  to {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.marquee-track {
+  display: flex;
+  width: max-content;
+  will-change: transform;
+  animation: marquee-x var(--marquee-duration, 34s) linear infinite;
+}
+
+.marquee-track[data-direction="right"] {
+  animation-name: marquee-x-reverse;
+}
+
+.marquee-mask {
+  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+}
+
+.marquee-mask[data-pause-on-hover="true"]:hover .marquee-track {
+  animation-play-state: paused;
+}
+
+/* ==========================================================================
+   Preloader
+   ========================================================================== */
+@keyframes horizon-rise {
+  0% {
+    transform: scaleY(0.04);
+    opacity: 0.2;
+  }
+  50% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scaleY(0.04);
+    opacity: 0.2;
+  }
+}
+
+@keyframes horizon-sweep {
+  0% {
+    transform: translateX(-110%);
+  }
+  100% {
+    transform: translateX(110%);
+  }
+}
+
+@keyframes horizon-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.preloader-bar {
+  animation: horizon-rise 1.6s var(--ease-lux) infinite;
+}
+
+.preloader-sweep {
+  animation: horizon-sweep 1.8s linear infinite;
+}
+
+.preloader-fade {
+  animation: horizon-fade-up 0.7s var(--ease-lux) both;
+}
+
+/* ==========================================================================
+   Reduced motion — honour the OS preference everywhere
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .tilt-3d,
+  .magnetic,
+  .magnetic-label {
+    transform: none !important;
+  }
 }

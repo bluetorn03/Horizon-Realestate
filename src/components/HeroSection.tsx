@@ -1,6 +1,20 @@
-import React, { useState } from 'react';
-import { Search, ChevronDown, ArrowRight, Home, Key, Building } from 'lucide-react';
-import type { PropertyFilterState, ListingType, PropertyCategory } from '../types';
+import React, { Suspense, lazy, useEffect, useMemo, useRef } from 'react';
+import { Search, ChevronDown, ArrowRight, Home, Key, Building2, ArrowDown } from 'lucide-react';
+import type { PropertyFilterState, ListingType } from '../types';
+import { usePrefersReducedMotion } from '../hooks/useReducedMotion';
+import { useWebGLSupport, usePrefersLightweight3D } from '../hooks/useWebGLSupport';
+import { MAX_PRICE_OPTIONS, MIN_PRICE_OPTIONS } from '../lib/format';
+import { heroImage } from '../lib/images';
+import { INDIAN_CITIES } from '../lib/locations';
+import { scrollToSection } from '../lib/scroll';
+import { ScrollTrigger } from '../lib/gsap';
+import { heroSceneState } from '../lib/sceneState';
+import { MagneticButton } from './MagneticButton';
+import { SplitText } from './SplitText';
+import { Marquee } from './Marquee';
+
+/** Heavy WebGL hero — code-split away from the initial bundle. */
+const HeroScene = lazy(() => import('./three/HeroScene'));
 
 interface HeroSectionProps {
   filters: PropertyFilterState;
@@ -11,6 +25,26 @@ interface HeroSectionProps {
   locationsList: string[];
 }
 
+const TABS: { id: ListingType; label: string; icon: typeof Home }[] = [
+  { id: 'sale', label: 'Buy', icon: Home },
+  { id: 'rent', label: 'Rent', icon: Key },
+  { id: 'commercial', label: 'Commercial', icon: Building2 },
+];
+
+const MARQUEE_ITEMS = [
+  'RERA Verified Inventory',
+  'Mumbai',
+  'Navi Mumbai',
+  'Thane',
+  'Pune',
+  'Bengaluru',
+  'Hyderabad',
+  'Delhi NCR',
+  'Goa',
+  'Carpet Area Transparency',
+  'Private Viewings Within 48 Hours',
+];
+
 export const HeroSection: React.FC<HeroSectionProps> = ({
   filters,
   onFilterChange,
@@ -19,228 +53,326 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
   onLearnMoreClick,
   locationsList,
 }) => {
-  const [activeTab, setActiveTab] = useState<ListingType | 'all'>('sale');
+  const [activeTab, setActiveTab] = React.useState<ListingType | 'all'>('sale');
+  const reducedMotion = usePrefersReducedMotion();
+  const webgl = useWebGLSupport();
+  const lightweight = usePrefersLightweight3D();
+
+  const locationOptions = useMemo(() => {
+    const set = new Set<string>();
+    // City names first (these match `property.city`), then the micro-markets
+    // that actually exist in the inventory (they match `property.location`).
+    INDIAN_CITIES.forEach((city) => set.add(city.name));
+    locationsList.forEach((location) => {
+      if (location) set.add(location);
+    });
+    return Array.from(set).slice(0, 48);
+  }, [locationsList]);
 
   const handleTabChange = (type: ListingType | 'all') => {
     setActiveTab(type);
     onFilterChange({ listingType: type === 'all' ? 'All' : type });
   };
 
-  const handleFormSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
     onSearch();
   };
 
+  const showScene = webgl;
+  const sectionRef = useRef<HTMLElement>(null);
+
+  /**
+   * Feed the WebGL hero scene from real scroll + pointer input.
+   * Writing to the shared mutable store keeps the render loop free of React
+   * re-renders while still giving genuine scroll-controlled camera movement.
+   */
+  useEffect(() => {
+    const section = sectionRef.current;
+    if (!section) return;
+
+    const trigger = ScrollTrigger.create({
+      trigger: section,
+      start: 'top top',
+      end: 'bottom top',
+      scrub: true,
+      onUpdate: (self) => {
+        heroSceneState.scrollProgress = self.progress;
+      },
+      onLeaveBack: () => {
+        heroSceneState.scrollProgress = 0;
+      },
+    });
+
+    const onPointerMove = (event: PointerEvent) => {
+      heroSceneState.pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
+      heroSceneState.pointer.y = (event.clientY / window.innerHeight) * 2 - 1;
+      heroSceneState.pointerActive = true;
+    };
+    const onPointerLeave = () => {
+      heroSceneState.pointer.x = 0;
+      heroSceneState.pointer.y = 0;
+      heroSceneState.pointerActive = false;
+    };
+
+    window.addEventListener('pointermove', onPointerMove, { passive: true });
+    document.addEventListener('pointerleave', onPointerLeave);
+
+    return () => {
+      trigger.kill();
+      window.removeEventListener('pointermove', onPointerMove);
+      document.removeEventListener('pointerleave', onPointerLeave);
+      heroSceneState.scrollProgress = 0;
+      heroSceneState.pointer.x = 0;
+      heroSceneState.pointer.y = 0;
+      heroSceneState.pointerActive = false;
+    };
+  }, []);
+
   return (
-    <section id="hero-section" className="relative w-full min-h-[580px] lg:min-h-[640px] flex items-center justify-center bg-slate-950 overflow-hidden pb-16 pt-12">
-      {/* Background Image with Deep Gradient Overlays */}
-      <div className="absolute inset-0 z-0">
+    <section
+      id="hero-section"
+      ref={sectionRef}
+      className="relative flex min-h-[100svh] flex-col justify-center overflow-hidden wash-hero pb-10 pt-14"
+    >
+      {/* ---------------- Background: photograph + 3D scene ---------------- */}
+      <div className="absolute inset-0" aria-hidden="true">
         <img
-          src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=2000&q=85"
-          alt="Luxury Architecture Dream Home"
-          className="w-full h-full object-cover object-center transform scale-105 transition-transform duration-1000 brightness-[0.7] contrast-[1.05]"
+          src={heroImage('photo-1753806389001-80e994bfbf04', 2000)}
+          alt=""
+          width={2000}
+          height={1200}
+          fetchPriority="high"
+          decoding="async"
           referrerPolicy="no-referrer"
+          className="h-full w-full scale-105 object-cover object-center opacity-[0.55]"
         />
-        {/* Cinematic dark luxury gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-slate-950/65 to-slate-950/40" />
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-slate-950/40" />
+        <div className="absolute inset-0 bg-gradient-to-r from-ink-950/92 via-ink-950/70 to-ink-950/35" />
+        <div className="absolute inset-0 bg-gradient-to-t from-ink-950 via-transparent to-ink-950/50" />
+
+        {showScene ? (
+          <div className="absolute inset-0">
+            <Suspense fallback={null}>
+              <HeroScene
+                reducedMotion={reducedMotion}
+                lightweight={lightweight}
+                className="!absolute inset-0 h-full w-full"
+              />
+            </Suspense>
+          </div>
+        ) : null}
       </div>
 
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-8 w-full flex flex-col justify-center">
-        {/* Hero Header Content */}
-        <div className="max-w-2xl text-left mb-8 md:mb-12">
-          {/* Eyebrow badge matching reference */}
-          <div className="inline-flex items-center gap-2 mb-3">
-            <span className="w-2 h-2 rounded-full bg-amber-500 ring-4 ring-amber-500/20"></span>
-            <span className="w-6 h-[1.5px] bg-amber-500/60"></span>
-            <span className="text-[11px] sm:text-xs tracking-[0.2em] font-bold text-amber-400 uppercase">
-              WELCOME TO HORIZON ESTATES
-            </span>
-          </div>
-
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-white leading-tight font-serif-luxury drop-shadow-md">
-            FIND YOUR <span className="text-[#d8a853] font-serif-luxury">DREAM HOME</span>
-          </h1>
-
-          <p className="mt-4 text-slate-200 text-sm sm:text-base leading-relaxed max-w-xl font-light">
-            Discover premium properties in prime locations. Luxury living. Exceptional Investments.
+      {/* ---------------- Content ---------------- */}
+      <div className="relative z-10 mx-auto w-full max-w-7xl px-4 sm:px-8">
+        <div className="max-w-3xl">
+          <p className="mb-4 flex items-center gap-2.5 text-[11px] font-bold uppercase tracking-[0.3em] text-gold-300">
+            <span className="h-1.5 w-1.5 rounded-full bg-gold-400 ring-4 ring-gold-400/20" />
+            <span className="h-[1.5px] w-8 bg-gold-400/50" />
+            Horizon Estates · India
           </p>
 
-          {/* Call to action buttons matching reference */}
-          <div className="mt-6 flex flex-wrap items-center gap-4">
-            <button
-              id="hero-explore-btn"
-              onClick={onExploreClick}
-              className="inline-flex items-center gap-2 bg-[#d8a853] hover:bg-[#c9973e] text-slate-950 font-bold text-xs tracking-wider uppercase px-6 py-3.5 rounded-md shadow-lg hover:shadow-amber-500/20 transition-all transform hover:-translate-y-0.5"
-            >
-              <span>EXPLORE PROPERTIES</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
-            <button
+          <h1 className="font-display text-[2.6rem] font-bold leading-[1.02] tracking-tight text-bone-50 sm:text-6xl lg:text-7xl">
+            <SplitText text="Find your address" mode="words" />
+            <br />
+            <span className="text-gold-300">
+              <SplitText text="in India's finest" mode="words" delay={0.12} />
+            </span>
+            <br />
+            <SplitText text="neighbourhoods" mode="words" delay={0.24} />
+          </h1>
+
+          <p className="mt-6 max-w-xl text-sm leading-relaxed text-bone-300 sm:text-base">
+            Curated residences across Mumbai, Navi Mumbai, Thane, Pune, Bengaluru, Hyderabad, Delhi
+            NCR and Goa — priced in ₹, measured in sq ft of carpet area, and RERA verified before
+            they reach you.
+          </p>
+
+          <div className="mt-8 flex flex-wrap items-center gap-3">
+            <MagneticButton id="hero-explore-btn" variant="gold" size="lg" onClick={onExploreClick}>
+              Explore Residences
+              <ArrowRight className="h-4 w-4" />
+            </MagneticButton>
+            <MagneticButton
               id="hero-learn-more-btn"
+              variant="outline"
+              size="lg"
               onClick={onLearnMoreClick}
-              className="inline-flex items-center gap-2 bg-transparent hover:bg-white/10 text-white font-bold text-xs tracking-wider uppercase px-6 py-3.5 rounded-md border border-white/40 hover:border-white transition-all backdrop-blur-xs"
+              className="border-bone-100/40 text-bone-50 hover:border-gold-300 hover:text-gold-200"
             >
-              <span>LEARN MORE</span>
-            </button>
+              The Horizon Approach
+            </MagneticButton>
           </div>
         </div>
 
-        {/* Floating Property Search Box matching reference */}
-        <div className="w-full bg-white/95 backdrop-blur-md rounded-xl p-4 sm:p-6 shadow-2xl border border-stone-200/80">
-          {/* Tabs: Buy / Rent / Commercial */}
-          <div className="flex items-center gap-2 mb-4 border-b border-stone-200 pb-3">
-            <button
-              id="search-tab-buy"
-              type="button"
-              onClick={() => handleTabChange('sale')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-md text-xs font-bold uppercase tracking-wider transition-all ${
-                activeTab === 'sale'
-                  ? 'bg-slate-900 text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-950 hover:bg-stone-100'
-              }`}
-            >
-              <Home className="w-3.5 h-3.5" />
-              <span>Buy</span>
-            </button>
-
-            <button
-              id="search-tab-rent"
-              type="button"
-              onClick={() => handleTabChange('rent')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-md text-xs font-bold uppercase tracking-wider transition-all ${
-                activeTab === 'rent'
-                  ? 'bg-slate-900 text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-950 hover:bg-stone-100'
-              }`}
-            >
-              <Key className="w-3.5 h-3.5" />
-              <span>Rent</span>
-            </button>
-
-            <button
-              id="search-tab-commercial"
-              type="button"
-              onClick={() => handleTabChange('commercial')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-md text-xs font-bold uppercase tracking-wider transition-all ${
-                activeTab === 'commercial'
-                  ? 'bg-slate-900 text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-950 hover:bg-stone-100'
-              }`}
-            >
-              <Building className="w-3.5 h-3.5" />
-              <span>Commercial</span>
-            </button>
+        {/* ---------------- Search console ---------------- */}
+        <div className="mt-10 w-full rounded-2xl border border-bone-200/70 bg-bone-50/95 p-4 shadow-lux-lg backdrop-blur-md sm:p-6">
+          <div className="mb-4 flex flex-wrap items-center gap-2 border-b border-bone-200 pb-4">
+            {TABS.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  id={`search-tab-${tab.id}`}
+                  onClick={() => handleTabChange(tab.id)}
+                  aria-pressed={isActive}
+                  className={`flex items-center gap-2 rounded-md px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.16em] transition-all duration-300 ${
+                    isActive
+                      ? 'bg-ink-900 text-bone-50 shadow-sm'
+                      : 'text-ink-600 hover:bg-bone-200/70 hover:text-ink-950'
+                  }`}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  {tab.label}
+                </button>
+              );
+            })}
+            <span className="ml-auto hidden text-[11px] font-medium text-bone-500 sm:block">
+              {activeTab === 'rent'
+                ? 'Monthly rentals, all-inclusive of maintenance'
+                : activeTab === 'commercial'
+                  ? 'Grade-A offices across India’s business districts'
+                  : 'Freehold, RERA registered, clear title'}
+            </span>
           </div>
 
-          {/* Form Fields: Location | Property Type | Min Price | Max Price | Submit Button */}
-          <form onSubmit={handleFormSubmit} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
-            {/* 1. Location */}
-            <div>
-              <label htmlFor="search-location-select" className="block text-[11px] font-bold uppercase text-slate-700 mb-1.5 tracking-wider">
+          <form
+            onSubmit={handleSubmit}
+            className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5"
+          >
+            <div className="lg:col-span-1">
+              <label
+                htmlFor="search-location-select"
+                className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.16em] text-ink-700"
+              >
                 Location
               </label>
               <div className="relative">
                 <select
                   id="search-location-select"
                   value={filters.location}
-                  onChange={(e) => onFilterChange({ location: e.target.value })}
-                  className="w-full bg-stone-50 border border-stone-300 text-slate-900 text-xs rounded-lg px-3 py-2.5 appearance-none focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent font-medium"
+                  onChange={(event) => onFilterChange({ location: event.target.value })}
+                  className="w-full appearance-none rounded-lg border border-bone-300 bg-white px-3 py-2.5 text-xs font-medium text-ink-900 focus:border-gold-500 focus:outline-none focus:ring-2 focus:ring-gold-500/30"
                 >
-                  <option value="">Select Location</option>
-                  {locationsList.map((loc) => (
-                    <option key={loc} value={loc}>
-                      {loc}
+                  <option value="">All India</option>
+                  {locationOptions.map((location) => (
+                    <option key={location} value={location}>
+                      {location}
                     </option>
                   ))}
                 </select>
-                <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-bone-400" />
               </div>
             </div>
 
-            {/* 2. Property Type */}
             <div>
-              <label htmlFor="search-type-select" className="block text-[11px] font-bold uppercase text-slate-700 mb-1.5 tracking-wider">
+              <label
+                htmlFor="search-type-select"
+                className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.16em] text-ink-700"
+              >
                 Property Type
               </label>
               <div className="relative">
                 <select
                   id="search-type-select"
                   value={filters.category}
-                  onChange={(e) => onFilterChange({ category: e.target.value })}
-                  className="w-full bg-stone-50 border border-stone-300 text-slate-900 text-xs rounded-lg px-3 py-2.5 appearance-none focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent font-medium"
+                  onChange={(event) => onFilterChange({ category: event.target.value })}
+                  className="w-full appearance-none rounded-lg border border-bone-300 bg-white px-3 py-2.5 text-xs font-medium text-ink-900 focus:border-gold-500 focus:outline-none focus:ring-2 focus:ring-gold-500/30"
                 >
                   <option value="All">All Types</option>
-                  <option value="House">House</option>
-                  <option value="Apartment">Apartment</option>
-                  <option value="Plot">Plot / Land</option>
-                  <option value="Villa">Luxury Villa</option>
+                  <option value="Apartment">Apartment / Flat</option>
+                  <option value="Villa">Villa</option>
+                  <option value="House">House / Bungalow</option>
+                  <option value="Plot">Residential Plot</option>
                   <option value="Commercial">Commercial Office</option>
                 </select>
-                <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-bone-400" />
               </div>
             </div>
 
-            {/* 3. Min Price */}
             <div>
-              <label htmlFor="search-min-price-select" className="block text-[11px] font-bold uppercase text-slate-700 mb-1.5 tracking-wider">
-                Min Price
+              <label
+                htmlFor="search-min-price-select"
+                className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.16em] text-ink-700"
+              >
+                Budget From
               </label>
               <div className="relative">
                 <select
                   id="search-min-price-select"
                   value={filters.minPrice}
-                  onChange={(e) => onFilterChange({ minPrice: Number(e.target.value) })}
-                  className="w-full bg-stone-50 border border-stone-300 text-slate-900 text-xs rounded-lg px-3 py-2.5 appearance-none focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent font-medium"
+                  onChange={(event) => onFilterChange({ minPrice: Number(event.target.value) })}
+                  className="w-full appearance-none rounded-lg border border-bone-300 bg-white px-3 py-2.5 text-xs font-medium text-ink-900 focus:border-gold-500 focus:outline-none focus:ring-2 focus:ring-gold-500/30"
                 >
-                  <option value={0}>Min Price (Any)</option>
-                  <option value={3000}>$3,000 / mo</option>
-                  <option value={500000}>$500,000</option>
-                  <option value={1000000}>$1,000,000</option>
-                  <option value={2000000}>$2,000,000</option>
-                  <option value={5000000}>$5,000,000</option>
+                  {MIN_PRICE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
                 </select>
-                <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-bone-400" />
               </div>
             </div>
 
-            {/* 4. Max Price */}
             <div>
-              <label htmlFor="search-max-price-select" className="block text-[11px] font-bold uppercase text-slate-700 mb-1.5 tracking-wider">
-                Max Price
+              <label
+                htmlFor="search-max-price-select"
+                className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.16em] text-ink-700"
+              >
+                Budget To
               </label>
               <div className="relative">
                 <select
                   id="search-max-price-select"
                   value={filters.maxPrice}
-                  onChange={(e) => onFilterChange({ maxPrice: Number(e.target.value) })}
-                  className="w-full bg-stone-50 border border-stone-300 text-slate-900 text-xs rounded-lg px-3 py-2.5 appearance-none focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent font-medium"
+                  onChange={(event) => onFilterChange({ maxPrice: Number(event.target.value) })}
+                  className="w-full appearance-none rounded-lg border border-bone-300 bg-white px-3 py-2.5 text-xs font-medium text-ink-900 focus:border-gold-500 focus:outline-none focus:ring-2 focus:ring-gold-500/30"
                 >
-                  <option value={100000000}>Max Price (Any)</option>
-                  <option value={10000}>$10,000 / mo</option>
-                  <option value={1500000}>$1,500,000</option>
-                  <option value={3000000}>$3,000,000</option>
-                  <option value={6000000}>$6,000,000</option>
-                  <option value={10000000}>$10,000,000+</option>
+                  {MAX_PRICE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
                 </select>
-                <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-bone-400" />
               </div>
             </div>
 
-            {/* 5. Submit Button */}
-            <div>
+            <div className="flex items-end">
               <button
-                id="search-submit-btn"
                 type="submit"
-                className="w-full bg-[#d8a853] hover:bg-[#c9973e] text-slate-950 font-bold text-xs uppercase tracking-wider py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 shadow-md transition-all h-[42px] cursor-pointer"
+                id="search-submit-btn"
+                className="flex h-[42px] w-full items-center justify-center gap-2 rounded-lg bg-gold-500 text-[11px] font-bold uppercase tracking-[0.16em] text-ink-950 shadow-md transition-colors duration-300 hover:bg-gold-400"
               >
-                <span>SEARCH PROPERTY</span>
-                <Search className="w-3.5 h-3.5 stroke-[2.5]" />
+                Search
+                <Search className="h-3.5 w-3.5 stroke-[2.5]" />
               </button>
             </div>
           </form>
         </div>
       </div>
+
+      {/* ---------------- Marquee + scroll cue ---------------- */}
+      <div className="relative z-10 mt-10">
+        <Marquee
+          items={MARQUEE_ITEMS}
+          duration={38}
+          itemClassName="text-[11px] font-bold uppercase tracking-[0.28em] text-bone-400"
+          separator={<span className="mx-6 text-gold-500">◆</span>}
+        />
+      </div>
+
+      <button
+        type="button"
+        onClick={() => scrollToSection('collection-marquee')}
+        className="absolute bottom-4 left-1/2 z-10 hidden -translate-x-1/2 flex-col items-center gap-1.5 text-bone-500 transition-colors hover:text-gold-300 lg:flex"
+        aria-label="Scroll to the signature collection"
+      >
+        <span className="text-[9px] font-bold uppercase tracking-[0.3em]">Scroll</span>
+        <ArrowDown className="h-4 w-4 animate-bounce" />
+      </button>
     </section>
   );
 };

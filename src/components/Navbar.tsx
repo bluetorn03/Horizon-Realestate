@@ -1,42 +1,56 @@
-import React, { useState } from 'react';
-import { 
-  Building2, 
-  Phone, 
-  Mail, 
-  MapPin, 
-  Heart, 
-  Plus, 
-  User as UserIcon, 
-  LogOut, 
-  Menu, 
-  X, 
-  ChevronDown, 
-  Calendar, 
-  Home, 
-  ShieldCheck, 
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  Phone,
+  Mail,
+  MapPin,
+  Heart,
+  Plus,
+  LogOut,
+  Menu,
+  X,
+  ChevronDown,
+  Calendar,
+  Home,
+  ShieldCheck,
   Layers,
   Facebook,
   Instagram,
   Linkedin,
-  Twitter
+  Twitter,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { MagneticButton } from './MagneticButton';
+import { BRAND } from '../lib/locations';
+import { scrollToSection, scrollToTop } from '../lib/scroll';
 
 interface NavbarProps {
   onOpenAuth: () => void;
   onOpenAddProperty: () => void;
   onOpenDashboard: (tab?: 'listings' | 'viewings' | 'inquiries' | 'favorites') => void;
   onSelectCategory: (category: string) => void;
+  onSelectLocation: (city: string) => void;
   onScrollToSection: (sectionId: string) => void;
   favoritesCount: number;
   onOpenFavorites: () => void;
 }
+
+const CATEGORY_LINKS = [
+  { label: 'All Residences', value: 'All', hint: 'View all' },
+  { label: 'Apartments & Flats', value: 'Apartment', hint: 'Rent / Sale' },
+  { label: 'Villas', value: 'Villa', hint: 'Independent' },
+  { label: 'Houses & Bungalows', value: 'House', hint: 'Plots included' },
+  { label: 'Residential Plots', value: 'Plot', hint: 'Land' },
+  { label: 'Commercial Offices', value: 'Commercial', hint: 'Grade A' },
+];
+
+const CITY_LINKS = ['Mumbai', 'Navi Mumbai', 'Thane', 'Pune', 'Bengaluru', 'Hyderabad', 'Delhi NCR', 'Goa'];
 
 export const Navbar: React.FC<NavbarProps> = ({
   onOpenAuth,
   onOpenAddProperty,
   onOpenDashboard,
   onSelectCategory,
+  onSelectLocation,
   onScrollToSection,
   favoritesCount,
   onOpenFavorites,
@@ -45,409 +59,454 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [propertiesDropdownOpen, setPropertiesDropdownOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const navRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 24);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      setMobileMenuOpen(false);
+      setUserDropdownOpen(false);
+      setPropertiesDropdownOpen(false);
+    };
+    const onClickOutside = (event: MouseEvent) => {
+      if (!navRef.current?.contains(event.target as Node)) {
+        setUserDropdownOpen(false);
+        setPropertiesDropdownOpen(false);
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    document.addEventListener('mousedown', onClickOutside);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('mousedown', onClickOutside);
+    };
+  }, []);
 
   const handleNavClick = (sectionId: string) => {
     onScrollToSection(sectionId);
     setMobileMenuOpen(false);
   };
 
-  const handleCategoryClick = (cat: string) => {
-    onSelectCategory(cat);
-    onScrollToSection('properties-section');
+  const handleCategoryClick = (category: string) => {
+    onSelectCategory(category);
     setPropertiesDropdownOpen(false);
     setMobileMenuOpen(false);
   };
 
+  const handleCityClick = (city: string) => {
+    onSelectLocation(city);
+    setPropertiesDropdownOpen(false);
+    setMobileMenuOpen(false);
+  };
+
+  const navLinkClass =
+    'text-[11px] font-bold uppercase tracking-[0.16em] text-ink-700 transition-colors duration-300 hover:text-gold-600';
+
   return (
-    <header className="w-full relative z-40">
-      {/* Top Luxury Bar matching reference */}
-      <div className="bg-[#0b1329] text-slate-300 text-xs py-2 px-4 sm:px-8 border-b border-slate-800/80">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-2">
-          <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 sm:gap-6">
-            <div className="flex items-center gap-1.5 hover:text-amber-400 transition-colors cursor-pointer">
-              <MapPin className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-              <span>123 Skyline Avenue, New York, NY 10001</span>
-            </div>
-            <div className="hidden sm:flex items-center gap-1.5 hover:text-amber-400 transition-colors">
-              <Phone className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-              <a href="tel:+12125557890">+1 (212) 555-7890</a>
-            </div>
-            <div className="hidden md:flex items-center gap-1.5 hover:text-amber-400 transition-colors">
-              <Mail className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-              <a href="mailto:info@horizonestates.com">info@horizonestates.com</a>
-            </div>
+    <header ref={navRef} className="relative z-40">
+      {/* Utility bar */}
+      <div className="border-b border-bone-100/10 bg-ink-950 px-4 py-2 text-[11px] text-bone-300 sm:px-8">
+        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-2 md:flex-row">
+          <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6">
+            <span className="flex items-center gap-1.5">
+              <MapPin className="h-3.5 w-3.5 shrink-0 text-gold-400" />
+              <span className="hidden sm:inline">{BRAND.addressLine1}, {BRAND.addressLine2}</span>
+              <span className="sm:hidden">Mumbai · India</span>
+            </span>
+            <a
+              href={`tel:${BRAND.phonePrimary.replace(/\s/g, '')}`}
+              className="hidden items-center gap-1.5 transition-colors hover:text-gold-300 sm:flex"
+            >
+              <Phone className="h-3.5 w-3.5 shrink-0 text-gold-400" />
+              {BRAND.phonePrimary}
+            </a>
+            <a
+              href={`mailto:${BRAND.emailPrimary}`}
+              className="hidden items-center gap-1.5 transition-colors hover:text-gold-300 md:flex"
+            >
+              <Mail className="h-3.5 w-3.5 shrink-0 text-gold-400" />
+              {BRAND.emailPrimary}
+            </a>
           </div>
 
           <div className="flex items-center gap-4">
-            <span className="text-slate-400">Follow Us:</span>
+            <span className="hidden text-bone-500 sm:inline">RERA {BRAND.rera}</span>
             <div className="flex items-center gap-3">
-              <a href="#social" className="text-slate-400 hover:text-amber-400 transition-colors" aria-label="Facebook">
-                <Facebook className="w-3.5 h-3.5" />
-              </a>
-              <a href="#social" className="text-slate-400 hover:text-amber-400 transition-colors" aria-label="Instagram">
-                <Instagram className="w-3.5 h-3.5" />
-              </a>
-              <a href="#social" className="text-slate-400 hover:text-amber-400 transition-colors" aria-label="LinkedIn">
-                <Linkedin className="w-3.5 h-3.5" />
-              </a>
-              <a href="#social" className="text-slate-400 hover:text-amber-400 transition-colors" aria-label="Twitter">
-                <Twitter className="w-3.5 h-3.5" />
-              </a>
+              {[Facebook, Instagram, Linkedin, Twitter].map((Icon, index) => (
+                <a
+                  key={index}
+                  href="#social"
+                  aria-label={['Facebook', 'Instagram', 'LinkedIn', 'Twitter'][index]}
+                  className="text-bone-500 transition-colors hover:text-gold-300"
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                </a>
+              ))}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Main Luxury Header */}
-      <div className="bg-white/95 backdrop-blur-md shadow-sm border-b border-stone-200 transition-all sticky top-0">
-        <div className="max-w-7xl mx-auto px-4 sm:px-8 py-3.5 flex items-center justify-between">
-          {/* Logo matching reference image: 3 stylized gold building lines + HORIZON ESTATES */}
-          <button 
-            id="brand-logo-btn"
-            onClick={() => handleNavClick('hero-section')}
-            className="flex items-center gap-3 text-left group focus:outline-none"
+      {/* Main header */}
+      <div
+        className={`sticky top-0 z-40 border-b transition-all duration-500 ${
+          scrolled
+            ? 'border-bone-300/60 bg-bone-50/90 shadow-lux-sm backdrop-blur-xl'
+            : 'border-transparent bg-bone-50'
+        }`}
+      >
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3.5 sm:px-8">
+          {/* Brand */}
+          <button
+            type="button"
+            onClick={() => {
+              scrollToTop();
+              setMobileMenuOpen(false);
+            }}
+            className="group flex items-center gap-3 text-left"
+            aria-label="Horizon Estates — back to top"
           >
-            <div className="flex items-end gap-0.5 h-8 w-8 justify-center pb-0.5">
-              <div className="w-1.5 h-5 bg-amber-600 rounded-t-[1px]"></div>
-              <div className="w-1.5 h-8 bg-amber-500 rounded-t-[1px]"></div>
-              <div className="w-1.5 h-6 bg-amber-700 rounded-t-[1px]"></div>
-            </div>
-            <div>
-              <span className="font-brand font-bold text-lg sm:text-xl tracking-wider text-slate-950 block leading-tight">
+            <span className="flex h-9 w-9 items-end justify-center gap-[3px] pb-1" aria-hidden="true">
+              <span className="w-[4px] rounded-t-[2px] bg-gold-600 transition-all duration-500 group-hover:h-6" style={{ height: 18 }} />
+              <span className="w-[4px] rounded-t-[2px] bg-gold-400" style={{ height: 30 }} />
+              <span className="w-[4px] rounded-t-[2px] bg-gold-700 transition-all duration-500 group-hover:h-5" style={{ height: 22 }} />
+            </span>
+            <span className="block">
+              <span className="font-brand block text-lg font-bold leading-none tracking-[0.18em] text-ink-950 sm:text-xl">
                 HORIZON
               </span>
-              <span className="text-[10px] tracking-[0.25em] text-slate-500 font-semibold uppercase block leading-none">
-                — ESTATES —
+              <span className="mt-1 block text-[9px] font-semibold uppercase leading-none tracking-[0.3em] text-bone-500">
+                Estates · India
               </span>
-              <span className="text-[7.5px] tracking-wider text-amber-700 font-medium block">
-                FIND YOUR NEW HORIZON
-              </span>
-            </div>
+            </span>
           </button>
 
-          {/* Desktop Navigation Links matching reference */}
-          <nav className="hidden lg:flex items-center gap-8">
-            <button 
-              id="nav-home-btn"
-              onClick={() => handleNavClick('hero-section')}
-              className="text-xs font-bold tracking-wider text-amber-700 uppercase hover:text-amber-600 transition-colors"
-            >
-              HOME
+          {/* Desktop navigation */}
+          <nav className="hidden items-center gap-7 lg:flex">
+            <button type="button" onClick={() => handleNavClick('hero-section')} className={navLinkClass}>
+              Home
             </button>
-            <button 
-              id="nav-about-btn"
-              onClick={() => handleNavClick('about-section')}
-              className="text-xs font-semibold tracking-wider text-slate-700 uppercase hover:text-amber-700 transition-colors"
-            >
-              ABOUT US
+            <button type="button" onClick={() => handleNavClick('about-section')} className={navLinkClass}>
+              About
             </button>
 
-            {/* Properties Dropdown */}
-            <div className="relative group">
-              <button 
+            <div className="relative">
+              <button
+                type="button"
                 id="nav-properties-dropdown-btn"
-                onClick={() => setPropertiesDropdownOpen(!propertiesDropdownOpen)}
+                aria-expanded={propertiesDropdownOpen}
+                aria-haspopup="true"
+                onClick={() => setPropertiesDropdownOpen((open) => !open)}
                 onMouseEnter={() => setPropertiesDropdownOpen(true)}
-                className="flex items-center gap-1 text-xs font-semibold tracking-wider text-slate-700 uppercase hover:text-amber-700 transition-colors"
+                className={`flex items-center gap-1.5 ${navLinkClass}`}
               >
-                <span>PROPERTIES</span>
-                <ChevronDown className="w-3.5 h-3.5 text-slate-400 group-hover:text-amber-600 transition-transform group-hover:rotate-180" />
+                Residences
+                <ChevronDown
+                  className={`h-3.5 w-3.5 text-bone-400 transition-transform duration-300 ${
+                    propertiesDropdownOpen ? 'rotate-180' : ''
+                  }`}
+                />
               </button>
 
               {propertiesDropdownOpen && (
-                <div 
+                <div
                   onMouseLeave={() => setPropertiesDropdownOpen(false)}
-                  className="absolute left-0 mt-2 w-52 bg-white rounded-lg shadow-xl border border-stone-200 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150"
+                  className="absolute left-0 top-full z-50 mt-3 w-[30rem] overflow-hidden rounded-xl border border-bone-300/70 bg-white shadow-lux-lg"
                 >
-                  <button 
-                    onClick={() => handleCategoryClick('All')}
-                    className="w-full text-left px-4 py-2 text-xs font-medium text-slate-800 hover:bg-amber-50 hover:text-amber-700 flex items-center justify-between"
-                  >
-                    <span>All Properties</span>
-                    <span className="text-[10px] text-slate-400">View All</span>
-                  </button>
-                  <button 
-                    onClick={() => handleCategoryClick('House')}
-                    className="w-full text-left px-4 py-2 text-xs font-medium text-slate-800 hover:bg-amber-50 hover:text-amber-700 flex items-center justify-between"
-                  >
-                    <span>Luxury Houses</span>
-                    <span className="text-[10px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">Villa / House</span>
-                  </button>
-                  <button 
-                    onClick={() => handleCategoryClick('Apartment')}
-                    className="w-full text-left px-4 py-2 text-xs font-medium text-slate-800 hover:bg-amber-50 hover:text-amber-700 flex items-center justify-between"
-                  >
-                    <span>Modern Apartments</span>
-                    <span className="text-[10px] text-slate-500">Rent / Sale</span>
-                  </button>
-                  <button 
-                    onClick={() => handleCategoryClick('Plot')}
-                    className="w-full text-left px-4 py-2 text-xs font-medium text-slate-800 hover:bg-amber-50 hover:text-amber-700 flex items-center justify-between"
-                  >
-                    <span>Prime Plots & Land</span>
-                    <span className="text-[10px] text-slate-500">Acreage</span>
-                  </button>
-                  <button 
-                    onClick={() => handleCategoryClick('Commercial')}
-                    className="w-full text-left px-4 py-2 text-xs font-medium text-slate-800 hover:bg-amber-50 hover:text-amber-700 flex items-center justify-between"
-                  >
-                    <span>Commercial Offices</span>
-                    <span className="text-[10px] text-slate-500">Corporate</span>
-                  </button>
+                  <div className="grid grid-cols-2 gap-6 p-5">
+                    <div>
+                      <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-bone-500">
+                        By Property Type
+                      </p>
+                      <ul className="space-y-1">
+                        {CATEGORY_LINKS.map((link) => (
+                          <li key={link.value}>
+                            <button
+                              type="button"
+                              onClick={() => handleCategoryClick(link.value)}
+                              className="flex w-full items-center justify-between rounded-md px-2.5 py-2 text-left text-xs font-medium text-ink-800 transition-colors hover:bg-gold-50 hover:text-gold-700"
+                            >
+                              {link.label}
+                              <span className="text-[10px] text-bone-500">{link.hint}</span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div>
+                      <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-bone-500">
+                        By City
+                      </p>
+                      <ul className="space-y-1">
+                        {CITY_LINKS.map((city) => (
+                          <li key={city}>
+                            <button
+                              type="button"
+                              onClick={() => handleCityClick(city)}
+                              className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-xs font-medium text-ink-800 transition-colors hover:bg-gold-50 hover:text-gold-700"
+                            >
+                              <MapPin className="h-3.5 w-3.5 text-gold-500" />
+                              {city}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between border-t border-bone-200 bg-bone-100/60 px-5 py-3">
+                    <span className="text-[11px] text-bone-500">
+                      {BRAND.rera}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPropertiesDropdownOpen(false);
+                        scrollToSection('collection-marquee');
+                      }}
+                      className="text-[11px] font-bold uppercase tracking-[0.16em] text-gold-700 hover:text-gold-600"
+                    >
+                      Signature Collection →
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
 
-            <button 
-              id="nav-services-btn"
-              onClick={() => handleNavClick('services-section')}
-              className="text-xs font-semibold tracking-wider text-slate-700 uppercase hover:text-amber-700 transition-colors"
-            >
-              SERVICES
+            <button type="button" onClick={() => handleNavClick('visualizer-section')} className={navLinkClass}>
+              Visualiser
             </button>
-            <button 
-              id="nav-testimonials-btn"
-              onClick={() => handleNavClick('testimonials-section')}
-              className="text-xs font-semibold tracking-wider text-slate-700 uppercase hover:text-amber-700 transition-colors"
-            >
-              TESTIMONIALS
+            <button type="button" onClick={() => handleNavClick('services-section')} className={navLinkClass}>
+              Services
             </button>
-            <button 
-              id="nav-contact-btn"
-              onClick={() => handleNavClick('contact-section')}
-              className="text-xs font-semibold tracking-wider text-slate-700 uppercase hover:text-amber-700 transition-colors"
-            >
-              CONTACT
+            <button type="button" onClick={() => handleNavClick('testimonials-section')} className={navLinkClass}>
+              Clients
+            </button>
+            <button type="button" onClick={() => handleNavClick('contact-section')} className={navLinkClass}>
+              Contact
             </button>
           </nav>
 
-          {/* Right Actions */}
-          <div className="flex items-center gap-3">
-            {/* Favorites Icon */}
+          {/* Actions */}
+          <div className="flex items-center gap-2 sm:gap-3">
             <button
+              type="button"
               id="header-favorites-btn"
               onClick={onOpenFavorites}
-              className="p-2 text-slate-600 hover:text-rose-600 hover:bg-rose-50 rounded-full transition-colors relative"
-              title="Saved Properties"
+              className="relative grid h-9 w-9 place-items-center rounded-full text-ink-600 transition-colors hover:bg-rose-50 hover:text-rose-600"
+              title="Shortlisted residences"
+              aria-label={`Shortlisted residences (${favoritesCount})`}
             >
-              <Heart className="w-5 h-5" />
+              <Heart className="h-[18px] w-[18px]" />
               {favoritesCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-rose-600 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center shadow-sm">
+                <span className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-rose-600 px-1 text-[10px] font-bold text-white">
                   {favoritesCount}
                 </span>
               )}
             </button>
 
-            {/* Add Property Button */}
-            <button
+            <MagneticButton
               id="header-add-property-btn"
+              variant="outline"
+              size="sm"
               onClick={onOpenAddProperty}
-              className="hidden sm:flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-md border border-amber-600/30 text-amber-800 bg-amber-50 hover:bg-amber-100 transition-colors"
+              className="hidden sm:inline-flex"
             >
-              <Plus className="w-4 h-4 text-amber-700" />
-              <span>List Property</span>
-            </button>
+              <Plus className="h-3.5 w-3.5" />
+              List Property
+            </MagneticButton>
 
-            {/* User Auth or Profile */}
             {user ? (
               <div className="relative">
                 <button
+                  type="button"
                   id="user-profile-menu-btn"
-                  onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-                  className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full border border-stone-200 hover:border-amber-400 bg-white hover:bg-stone-50 transition-all focus:outline-none shadow-xs"
+                  aria-expanded={userDropdownOpen}
+                  onClick={() => setUserDropdownOpen((open) => !open)}
+                  className="flex items-center gap-2 rounded-full border border-bone-300 bg-white py-1.5 pl-2 pr-3 shadow-xs transition-colors hover:border-gold-400"
                 >
                   {user.photoURL ? (
-                    <img 
-                      src={user.photoURL} 
-                      alt={user.displayName || 'User'} 
-                      className="w-7 h-7 rounded-full object-cover border border-amber-500/50"
+                    <img
+                      src={user.photoURL}
+                      alt=""
+                      width={28}
+                      height={28}
                       referrerPolicy="no-referrer"
+                      className="h-7 w-7 rounded-full border border-gold-400/50 object-cover"
                     />
                   ) : (
-                    <div className="w-7 h-7 rounded-full bg-amber-600 text-white flex items-center justify-center text-xs font-bold">
-                      {user.displayName ? user.displayName.charAt(0).toUpperCase() : 'U'}
-                    </div>
+                    <span className="grid h-7 w-7 place-items-center rounded-full bg-gold-500 text-xs font-bold text-ink-950">
+                      {(user.displayName || user.email || 'U').charAt(0).toUpperCase()}
+                    </span>
                   )}
-                  <span className="text-xs font-medium text-slate-800 max-w-[90px] truncate hidden md:inline">
+                  <span className="hidden max-w-[92px] truncate text-xs font-medium text-ink-800 md:inline">
                     {user.displayName || user.email?.split('@')[0]}
                   </span>
-                  <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                  <ChevronDown className="h-3.5 w-3.5 text-bone-400" />
                 </button>
 
                 {userDropdownOpen && (
-                  <div 
+                  <div
                     onMouseLeave={() => setUserDropdownOpen(false)}
-                    className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-stone-200 py-2 z-50 animate-in fade-in duration-150"
+                    className="absolute right-0 top-full z-50 mt-3 w-60 overflow-hidden rounded-xl border border-bone-300/70 bg-white shadow-lux-lg"
                   >
-                    <div className="px-4 py-2 border-b border-stone-100">
-                      <p className="text-xs font-semibold text-slate-900 truncate">
-                        {user.displayName || 'Property Member'}
+                    <div className="border-b border-bone-200 px-4 py-3">
+                      <p className="truncate text-xs font-bold text-ink-900">
+                        {user.displayName || 'Member'}
                       </p>
-                      <p className="text-[11px] text-slate-500 truncate">{user.email}</p>
+                      <p className="truncate text-[11px] text-bone-500">{user.email}</p>
                     </div>
-
-                    <button
-                      id="menu-my-listings-btn"
-                      onClick={() => {
-                        onOpenDashboard('listings');
-                        setUserDropdownOpen(false);
-                      }}
-                      className="w-full text-left px-4 py-2.5 text-xs text-slate-700 hover:bg-amber-50 hover:text-amber-800 flex items-center gap-2.5"
-                    >
-                      <Home className="w-4 h-4 text-amber-600" />
-                      <span>My Listed Properties</span>
-                    </button>
-
-                    <button
-                      id="menu-my-viewings-btn"
-                      onClick={() => {
-                        onOpenDashboard('viewings');
-                        setUserDropdownOpen(false);
-                      }}
-                      className="w-full text-left px-4 py-2.5 text-xs text-slate-700 hover:bg-amber-50 hover:text-amber-800 flex items-center gap-2.5"
-                    >
-                      <Calendar className="w-4 h-4 text-amber-600" />
-                      <span>My Booked Viewings</span>
-                    </button>
-
-                    <button
-                      id="menu-inquiries-btn"
-                      onClick={() => {
-                        onOpenDashboard('inquiries');
-                        setUserDropdownOpen(false);
-                      }}
-                      className="w-full text-left px-4 py-2.5 text-xs text-slate-700 hover:bg-amber-50 hover:text-amber-800 flex items-center gap-2.5"
-                    >
-                      <Layers className="w-4 h-4 text-amber-600" />
-                      <span>Viewing Inquiries Received</span>
-                    </button>
-
-                    <button
-                      id="menu-saved-favorites-btn"
-                      onClick={() => {
-                        onOpenDashboard('favorites');
-                        setUserDropdownOpen(false);
-                      }}
-                      className="w-full text-left px-4 py-2.5 text-xs text-slate-700 hover:bg-amber-50 hover:text-amber-800 flex items-center gap-2.5"
-                    >
-                      <Heart className="w-4 h-4 text-rose-500" />
-                      <span>Saved Favorites</span>
-                    </button>
-
-                    <div className="border-t border-stone-100 my-1"></div>
-
-                    <button
-                      id="menu-logout-btn"
-                      onClick={async () => {
-                        await logout();
-                        setUserDropdownOpen(false);
-                      }}
-                      className="w-full text-left px-4 py-2 text-xs text-rose-600 hover:bg-rose-50 flex items-center gap-2.5"
-                    >
-                      <LogOut className="w-4 h-4" />
-                      <span>Sign Out</span>
-                    </button>
+                    <div className="py-1.5">
+                      {[
+                        { id: 'menu-my-listings-btn', label: 'My Listed Properties', icon: Home, tab: 'listings' as const },
+                        { id: 'menu-my-viewings-btn', label: 'My Booked Viewings', icon: Calendar, tab: 'viewings' as const },
+                        { id: 'menu-inquiries-btn', label: 'Inquiries Received', icon: Layers, tab: 'inquiries' as const },
+                        { id: 'menu-saved-favorites-btn', label: 'Shortlisted Homes', icon: Heart, tab: 'favorites' as const },
+                      ].map((item) => {
+                        const Icon = item.icon;
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            id={item.id}
+                            onClick={() => {
+                              onOpenDashboard(item.tab);
+                              setUserDropdownOpen(false);
+                            }}
+                            className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-xs text-ink-700 transition-colors hover:bg-gold-50 hover:text-gold-800"
+                          >
+                            <Icon className="h-4 w-4 text-gold-600" />
+                            {item.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className="border-t border-bone-200 py-1.5">
+                      <button
+                        type="button"
+                        id="menu-logout-btn"
+                        onClick={async () => {
+                          setUserDropdownOpen(false);
+                          await logout();
+                        }}
+                        className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-xs font-semibold text-rose-600 transition-colors hover:bg-rose-50"
+                      >
+                        <LogOut className="h-4 w-4" />
+                        Sign Out
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
             ) : (
-              <button
-                id="header-get-in-touch-btn"
-                onClick={onOpenAuth}
-                className="bg-[#0b1329] hover:bg-slate-900 text-white text-xs font-semibold px-5 py-2.5 rounded-md tracking-wider transition-all duration-200 shadow-sm hover:shadow"
-              >
-                SIGN IN
-              </button>
+              <MagneticButton id="header-get-in-touch-btn" variant="ink" size="sm" onClick={onOpenAuth}>
+                Sign In
+              </MagneticButton>
             )}
 
-            {/* Mobile Menu Toggle */}
             <button
+              type="button"
               id="mobile-menu-toggle-btn"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-2 text-slate-700 hover:text-slate-900 focus:outline-none"
-              aria-label="Toggle menu"
+              onClick={() => setMobileMenuOpen((open) => !open)}
+              className="grid h-9 w-9 place-items-center rounded-md text-ink-800 transition-colors hover:bg-bone-200 lg:hidden"
+              aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
+              aria-expanded={mobileMenuOpen}
             >
-              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
           </div>
         </div>
 
-        {/* Mobile Navigation Drawer */}
+        {/* Mobile drawer */}
         {mobileMenuOpen && (
-          <div className="lg:hidden bg-white border-b border-stone-200 px-4 py-4 space-y-3 animate-in slide-in-from-top-4 duration-200">
-            <button 
-              onClick={() => handleNavClick('hero-section')}
-              className="block w-full text-left py-2 text-sm font-semibold text-slate-900 hover:text-amber-700"
-            >
-              HOME
-            </button>
-            <button 
-              onClick={() => handleNavClick('about-section')}
-              className="block w-full text-left py-2 text-sm font-semibold text-slate-900 hover:text-amber-700"
-            >
-              ABOUT US
-            </button>
+          <div className="max-h-[calc(100svh-4.5rem)] overflow-y-auto border-t border-bone-300 bg-bone-50 px-4 pb-8 pt-4 lg:hidden">
+            <nav className="flex flex-col">
+              {[
+                { label: 'Home', id: 'hero-section' },
+                { label: 'About Us', id: 'about-section' },
+                { label: 'Signature Collection', id: 'collection-marquee' },
+                { label: 'Architecture Visualiser', id: 'visualizer-section' },
+                { label: 'Services', id: 'services-section' },
+                { label: 'Client Stories', id: 'testimonials-section' },
+                { label: 'Contact', id: 'contact-section' },
+              ].map((link) => (
+                <button
+                  key={link.id}
+                  type="button"
+                  onClick={() => handleNavClick(link.id)}
+                  className="border-b border-bone-200 py-3 text-left text-sm font-semibold text-ink-900 transition-colors hover:text-gold-700"
+                >
+                  {link.label}
+                </button>
+              ))}
+            </nav>
 
-            <div className="py-2 border-y border-stone-100">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Browse Properties</span>
-              <div className="grid grid-cols-2 gap-2">
-                <button 
-                  onClick={() => handleCategoryClick('House')}
-                  className="text-left px-3 py-1.5 rounded bg-stone-50 text-xs font-medium text-slate-800 hover:bg-amber-100"
+            <p className="mb-2 mt-5 text-[10px] font-bold uppercase tracking-[0.2em] text-bone-500">
+              Browse by city
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {CITY_LINKS.map((city) => (
+                <button
+                  key={city}
+                  type="button"
+                  onClick={() => handleCityClick(city)}
+                  className="rounded-full border border-bone-300 bg-white px-3 py-1.5 text-[11px] font-semibold text-ink-800 transition-colors hover:border-gold-400 hover:text-gold-700"
                 >
-                  Houses & Villas
+                  {city}
                 </button>
-                <button 
-                  onClick={() => handleCategoryClick('Apartment')}
-                  className="text-left px-3 py-1.5 rounded bg-stone-50 text-xs font-medium text-slate-800 hover:bg-amber-100"
-                >
-                  Apartments
-                </button>
-                <button 
-                  onClick={() => handleCategoryClick('Plot')}
-                  className="text-left px-3 py-1.5 rounded bg-stone-50 text-xs font-medium text-slate-800 hover:bg-amber-100"
-                >
-                  Plots & Land
-                </button>
-                <button 
-                  onClick={() => handleCategoryClick('Commercial')}
-                  className="text-left px-3 py-1.5 rounded bg-stone-50 text-xs font-medium text-slate-800 hover:bg-amber-100"
-                >
-                  Commercial
-                </button>
-              </div>
+              ))}
             </div>
 
-            <button 
-              onClick={() => handleNavClick('services-section')}
-              className="block w-full text-left py-2 text-sm font-semibold text-slate-900 hover:text-amber-700"
-            >
-              SERVICES
-            </button>
-            <button 
-              onClick={() => handleNavClick('testimonials-section')}
-              className="block w-full text-left py-2 text-sm font-semibold text-slate-900 hover:text-amber-700"
-            >
-              TESTIMONIALS
-            </button>
-            <button 
-              onClick={() => handleNavClick('contact-section')}
-              className="block w-full text-left py-2 text-sm font-semibold text-slate-900 hover:text-amber-700"
-            >
-              CONTACT
-            </button>
+            <p className="mb-2 mt-6 text-[10px] font-bold uppercase tracking-[0.2em] text-bone-500">
+              Browse by type
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {CATEGORY_LINKS.map((link) => (
+                <button
+                  key={link.value}
+                  type="button"
+                  onClick={() => handleCategoryClick(link.value)}
+                  className="rounded-lg bg-bone-100 px-3 py-2.5 text-left text-xs font-semibold text-ink-800 transition-colors hover:bg-gold-50 hover:text-gold-800"
+                >
+                  {link.label}
+                </button>
+              ))}
+            </div>
 
-            <div className="pt-2 flex flex-col gap-2">
-              <button
+            <div className="mt-6 flex flex-col gap-2.5">
+              <MagneticButton
+                variant="gold"
+                size="md"
                 onClick={() => {
                   onOpenAddProperty();
                   setMobileMenuOpen(false);
                 }}
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-md bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold"
+                className="w-full"
               >
-                <Plus className="w-4 h-4" />
-                <span>List Your Property</span>
-              </button>
+                <Plus className="h-4 w-4" />
+                List Your Property
+              </MagneticButton>
+              {!user && (
+                <MagneticButton
+                  variant="ink"
+                  size="md"
+                  onClick={() => {
+                    onOpenAuth();
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-full"
+                >
+                  <ShieldCheck className="h-4 w-4" />
+                  Sign In / Sign Up
+                </MagneticButton>
+              )}
             </div>
           </div>
         )}

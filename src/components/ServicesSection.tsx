@@ -1,105 +1,148 @@
 import React from 'react';
-import { Home, FileText, Key, Camera, Calculator, ShieldCheck } from 'lucide-react';
+import {
+  Home,
+  FileText,
+  Key,
+  Camera,
+  Calculator,
+  ShieldCheck,
+  Globe2,
+  Wrench,
+} from 'lucide-react';
+import { SplitText } from './SplitText';
 
 interface ServicesSectionProps {
   onSelectCategory: (category: string) => void;
   onOpenAddProperty: () => void;
 }
 
+const SERVICES = [
+  {
+    icon: Home,
+    title: 'Buying & Acquisition',
+    copy: 'Shortlists built around carpet area, floor rise, marginal open space and the ₹ per sq ft you are actually paying.',
+    action: 'Browse residences',
+    onClick: 'Apartment',
+  },
+  {
+    icon: Key,
+    title: 'Rentals & Leasing',
+    copy: 'Furnished and semi-furnished rentals with deposit, maintenance and lock-in terms disclosed up front.',
+    action: 'View rentals',
+    onClick: 'Apartment',
+  },
+  {
+    icon: Calculator,
+    title: 'Valuation & Pricing',
+    copy: 'Comparable-transaction analysis using circle rates, ready-reckoner values and actual registered consideration.',
+    action: 'List for sale',
+    onClick: 'add',
+  },
+  {
+    icon: FileText,
+    title: 'Legal & Title Diligence',
+    copy: 'Encumbrance certificates, 7/12 extracts, Khata verification, society NOC and agreement drafting.',
+    action: 'Learn more',
+    onClick: 'contact',
+  },
+  {
+    icon: ShieldCheck,
+    title: 'Home Loan Desk',
+    copy: 'Pre-approved offers from SBI, HDFC, ICICI and Axis with balance-transfer and top-up planning.',
+    action: 'Learn more',
+    onClick: 'contact',
+  },
+  {
+    icon: Camera,
+    title: '3D & Virtual Walkthroughs',
+    copy: 'Architectural studies and 360° capture so NRI buyers can review a residence from anywhere.',
+    action: 'See the visualiser',
+    onClick: 'visualizer',
+  },
+  {
+    icon: Globe2,
+    title: 'NRI Advisory',
+    copy: 'FEMA-compliant routing, power-of-attorney execution and repatriation guidance for overseas Indians.',
+    action: 'Learn more',
+    onClick: 'contact',
+  },
+  {
+    icon: Wrench,
+    title: 'Property Management',
+    copy: 'Tenant placement, rent collection, society coordination and annual maintenance for absentee owners.',
+    action: 'Learn more',
+    onClick: 'contact',
+  },
+];
+
 export const ServicesSection: React.FC<ServicesSectionProps> = ({
   onSelectCategory,
   onOpenAddProperty,
 }) => {
-  const services = [
-    {
-      icon: Home,
-      title: 'Property Sales & Acquisition',
-      desc: 'Exclusive access to premier luxury houses, beachfront villas, and entitled land parcels with discreet negotiation.',
-      action: 'Browse Listings',
-      onClick: () => onSelectCategory('House'),
-    },
-    {
-      icon: Key,
-      title: 'Luxury Rentals & Leasing',
-      desc: 'Long-term corporate leases and furnished high-rise penthouses in central metropolitan hubs.',
-      action: 'View Rentals',
-      onClick: () => onSelectCategory('Apartment'),
-    },
-    {
-      icon: Calculator,
-      title: 'Instant Property Valuation',
-      desc: 'Accurate algorithmic and comparable market analyses powered by historical sales data and neighborhood appreciation.',
-      action: 'List for Sale',
-      onClick: onOpenAddProperty,
-    },
-    {
-      icon: Camera,
-      title: '3D Virtual Walkthroughs',
-      desc: 'Immersive 4K Matterport capture allowing international buyers to explore properties room by room.',
-      action: 'Learn More',
-      onClick: () => {},
-    },
-    {
-      icon: FileText,
-      title: 'Legal & Escrow Advisory',
-      desc: 'Streamlined title review, contract drafting, and certified escrow settlement for safe transfers.',
-      action: 'Learn More',
-      onClick: () => {},
-    },
-    {
-      icon: ShieldCheck,
-      title: 'Asset Management',
-      desc: 'Full-service tenant management, maintenance coordination, and revenue optimization for institutional portfolios.',
-      action: 'Learn More',
-      onClick: () => {},
-    },
-  ];
+  const handleClick = (target: string) => {
+    if (target === 'add') {
+      onOpenAddProperty();
+      return;
+    }
+    if (target === 'contact') {
+      document.getElementById('contact-section')?.scrollIntoView({ behavior: 'smooth' });
+      return;
+    }
+    if (target === 'visualizer') {
+      document.getElementById('visualizer-section')?.scrollIntoView({ behavior: 'smooth' });
+      return;
+    }
+    onSelectCategory(target);
+  };
 
   return (
-    <section id="services-section" className="py-20 bg-white border-b border-stone-200 px-4 sm:px-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="text-center max-w-2xl mx-auto mb-14">
-          <div className="text-[11px] font-bold tracking-[0.2em] text-amber-700 uppercase mb-2">
-            OUR SERVICES
-          </div>
-          <h2 className="text-3xl sm:text-4xl font-bold text-slate-950 font-serif-luxury tracking-tight">
-            Comprehensive Real Estate Solutions
-          </h2>
-          <p className="text-xs sm:text-sm text-slate-600 mt-3 leading-relaxed">
-            From premier estate acquisition to personalized property marketing, Horizon Estates delivers unmatched expertise at every stage.
+    <section id="services-section" className="border-b border-bone-200 bg-bone-100/60 px-4 py-20 sm:px-8 sm:py-24">
+      <div className="mx-auto max-w-7xl">
+        <div className="mx-auto mb-14 max-w-2xl text-center">
+          <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.28em] text-gold-600">
+            Our Services
+          </p>
+          <SplitText
+            as="h2"
+            text="Everything a purchase in India needs"
+            className="font-display text-3xl font-bold leading-tight tracking-tight text-ink-950 sm:text-4xl lg:text-5xl"
+          />
+          <p className="mt-4 text-sm leading-relaxed text-bone-500">
+            From shortlist to registration, and from tenancy to annual maintenance — one accountable
+            desk for the entire ownership lifecycle.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {services.map((service, index) => {
+        <div
+          className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4"
+          data-reveal-stagger
+        >
+          {SERVICES.map((service) => {
             const Icon = service.icon;
             return (
-              <div
-                key={index}
-                className="bg-stone-50/70 border border-stone-200/80 rounded-xl p-6 sm:p-8 hover:bg-white hover:shadow-xl transition-all duration-300 group flex flex-col justify-between"
+              <article
+                key={service.title}
+                data-reveal-item
+                className="group flex flex-col justify-between rounded-xl border border-bone-300/70 bg-white p-6 transition-all duration-500 hover:-translate-y-1 hover:border-gold-400/50 hover:shadow-lux-lg"
               >
                 <div>
-                  <div className="w-12 h-12 rounded-lg bg-[#0b1329] group-hover:bg-amber-600 text-white flex items-center justify-center transition-colors mb-5 shadow-xs">
-                    <Icon className="w-6 h-6 stroke-[1.5]" />
-                  </div>
-                  <h3 className="text-base font-bold text-slate-900 mb-2.5">
-                    {service.title}
-                  </h3>
-                  <p className="text-xs text-slate-600 leading-relaxed">
-                    {service.desc}
-                  </p>
+                  <span className="mb-5 grid h-12 w-12 place-items-center rounded-lg bg-ink-900 text-bone-50 shadow-lux-sm transition-colors duration-500 group-hover:bg-gold-500 group-hover:text-ink-950">
+                    <Icon className="h-6 w-6" />
+                  </span>
+                  <h3 className="text-base font-bold text-ink-900">{service.title}</h3>
+                  <p className="mt-2.5 text-xs leading-relaxed text-bone-500">{service.copy}</p>
                 </div>
-
-                <div className="mt-6 pt-4 border-t border-stone-200/60 flex items-center justify-between">
+                <div className="mt-6 border-t border-bone-200 pt-4">
                   <button
-                    onClick={service.onClick}
-                    className="text-xs font-bold text-slate-900 group-hover:text-amber-700 transition-colors uppercase tracking-wider flex items-center gap-1 cursor-pointer"
+                    type="button"
+                    onClick={() => handleClick(service.onClick)}
+                    className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-ink-900 transition-colors duration-300 group-hover:text-gold-700"
                   >
-                    <span>{service.action}</span>
-                    <span className="group-hover:translate-x-1 transition-transform">→</span>
+                    {service.action}
+                    <span className="transition-transform duration-300 group-hover:translate-x-1">→</span>
                   </button>
                 </div>
-              </div>
+              </article>
             );
           })}
         </div>

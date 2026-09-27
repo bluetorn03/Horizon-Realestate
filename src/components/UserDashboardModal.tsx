@@ -1,31 +1,31 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  X, 
-  Home, 
-  Calendar, 
-  Layers, 
-  Heart, 
-  Edit, 
-  Trash2, 
-  Plus, 
-  Clock, 
-  CheckCircle2, 
-  XCircle, 
-  MapPin, 
-  Eye, 
-  User, 
-  Phone, 
+import {
+  Home,
+  Calendar,
+  Layers,
+  Heart,
+  Plus,
+  Clock,
+  CheckCircle2,
+  MapPin,
+  User,
+  Phone,
   Mail,
-  Building
+  Building2,
+  XCircle,
 } from 'lucide-react';
 import type { Property, Viewing } from '../types';
 import { useAuth } from '../context/AuthContext';
-import { 
-  fetchUserViewings, 
-  fetchOwnerViewings, 
-  updateViewingStatus, 
-  deleteViewing 
+import {
+  fetchUserViewings,
+  fetchOwnerViewings,
+  updateViewingStatus,
+  deleteViewing,
 } from '../lib/firebase';
+import { Modal, ModalHeader } from './Modal';
+import { MagneticButton } from './MagneticButton';
+import { PropertyRow } from './PropertyCard';
+import { formatPrice } from '../lib/format';
 
 interface UserDashboardModalProps {
   initialTab?: 'listings' | 'viewings' | 'inquiries' | 'favorites';
@@ -39,6 +39,13 @@ interface UserDashboardModalProps {
   onToggleFavorite: (propertyId: string) => void;
 }
 
+const STATUS_STYLES: Record<Viewing['status'], string> = {
+  pending: 'bg-gold-100 text-gold-800',
+  confirmed: 'bg-emerald-100 text-emerald-800',
+  completed: 'bg-blue-100 text-blue-800',
+  cancelled: 'bg-rose-100 text-rose-800',
+};
+
 export const UserDashboardModal: React.FC<UserDashboardModalProps> = ({
   initialTab = 'listings',
   properties,
@@ -51,475 +58,440 @@ export const UserDashboardModal: React.FC<UserDashboardModalProps> = ({
   onToggleFavorite,
 }) => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'listings' | 'viewings' | 'inquiries' | 'favorites'>(initialTab);
-  
+  const [activeTab, setActiveTab] = useState<'listings' | 'viewings' | 'inquiries' | 'favorites'>(
+    initialTab,
+  );
   const [myViewings, setMyViewings] = useState<Viewing[]>([]);
   const [ownerInquiries, setOwnerInquiries] = useState<Viewing[]>([]);
   const [loadingViewings, setLoadingViewings] = useState(false);
 
-  const myListedProperties = properties.filter((p) => user && p.ownerId === user.uid);
-  const favoriteProperties = properties.filter((p) => favorites.includes(p.id));
-
-  const loadViewingsData = async () => {
-    if (!user) return;
-    setLoadingViewings(true);
-    try {
-      const [userBookings, receivedInquiries] = await Promise.all([
-        fetchUserViewings(user.uid),
-        fetchOwnerViewings(user.uid),
-      ]);
-      setMyViewings(userBookings);
-      setOwnerInquiries(receivedInquiries);
-    } catch (err) {
-      console.error('Error fetching viewings:', err);
-    } finally {
-      setLoadingViewings(false);
-    }
-  };
+  const myListedProperties = properties.filter((property) => user && property.ownerId === user.uid);
+  const favoriteProperties = properties.filter((property) => favorites.includes(property.id));
 
   useEffect(() => {
-    loadViewingsData();
+    if (!user) return;
+    let cancelled = false;
+
+    const load = async () => {
+      setLoadingViewings(true);
+      try {
+        const [bookings, inquiries] = await Promise.all([
+          fetchUserViewings(user.uid),
+          fetchOwnerViewings(user.uid),
+        ]);
+        if (cancelled) return;
+        setMyViewings(bookings);
+        setOwnerInquiries(inquiries);
+      } catch (error) {
+        console.error('Error loading viewing data:', error);
+      } finally {
+        if (!cancelled) setLoadingViewings(false);
+      }
+    };
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
   }, [user]);
 
-  const handleUpdateStatus = async (viewingId: string, newStatus: Viewing['status']) => {
+  const handleUpdateStatus = async (viewingId: string, status: Viewing['status']) => {
     try {
-      await updateViewingStatus(viewingId, newStatus);
-      setOwnerInquiries((prev) =>
-        prev.map((v) => (v.id === viewingId ? { ...v, status: newStatus } : v))
-      );
-      setMyViewings((prev) =>
-        prev.map((v) => (v.id === viewingId ? { ...v, status: newStatus } : v))
-      );
-    } catch (err) {
-      console.error('Error updating status:', err);
+      await updateViewingStatus(viewingId, status);
+      const patch = (viewing: Viewing) =>
+        viewing.id === viewingId ? { ...viewing, status } : viewing;
+      setOwnerInquiries((current) => current.map(patch));
+      setMyViewings((current) => current.map(patch));
+    } catch (error) {
+      console.error('Error updating viewing status:', error);
     }
   };
 
   const handleCancelBooking = async (viewingId: string) => {
-    if (window.confirm('Are you sure you want to cancel this viewing appointment?')) {
-      try {
-        await deleteViewing(viewingId);
-        setMyViewings((prev) => prev.filter((v) => v.id !== viewingId));
-      } catch (err) {
-        console.error('Error cancelling viewing:', err);
-      }
+    if (!window.confirm('Cancel this viewing appointment?')) return;
+    try {
+      await deleteViewing(viewingId);
+      setMyViewings((current) => current.filter((viewing) => viewing.id !== viewingId));
+    } catch (error) {
+      console.error('Error cancelling viewing:', error);
     }
   };
 
   if (!user) return null;
 
+  const tabs = [
+    { id: 'listings' as const, label: 'My Listings', icon: Home, count: myListedProperties.length },
+    { id: 'viewings' as const, label: 'My Viewings', icon: Calendar, count: myViewings.length },
+    { id: 'inquiries' as const, label: 'Inquiries', icon: Layers, count: ownerInquiries.length },
+    { id: 'favorites' as const, label: 'Shortlist', icon: Heart, count: favoriteProperties.length },
+  ];
+
+  const EmptyState: React.FC<{
+    icon: React.ComponentType<{ className?: string }>;
+    title: string;
+    copy: string;
+    cta?: { label: string; onClick: () => void };
+  }> = ({ icon: Icon, title, copy, cta }) => (
+    <div className="rounded-xl border border-bone-200 bg-white p-8 text-center">
+      <Icon className="mx-auto mb-3 h-9 w-9 text-bone-300" />
+      <p className="text-sm font-bold text-ink-900">{title}</p>
+      <p className="mx-auto mt-1.5 max-w-sm text-xs leading-relaxed text-bone-500">{copy}</p>
+      {cta ? (
+        <div className="mt-5">
+          <MagneticButton variant="ink" size="sm" onClick={cta.onClick}>
+            <Plus className="h-3.5 w-3.5" />
+            {cta.label}
+          </MagneticButton>
+        </div>
+      ) : null}
+    </div>
+  );
+
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 overflow-y-auto animate-in fade-in duration-200">
-      <div 
-        id="user-dashboard-modal-container"
-        className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden my-auto max-h-[92vh] flex flex-col border border-stone-200 animate-in zoom-in-95 duration-200"
+    <Modal onClose={onClose} size="xl" id="user-dashboard-modal-container" showCloseButton={false}>
+      titleId="dashboard-title"
+      <ModalHeader
+        tone="ink"
+        icon={Building2}
+        title="Member Portal"
+        titleId="dashboard-title"
+        subtitle={user.email || 'Horizon Estates member'}
       >
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-stone-200 flex items-center justify-between bg-stone-50">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-slate-900 text-amber-400 flex items-center justify-center font-bold text-sm">
-              {user.displayName ? user.displayName.charAt(0).toUpperCase() : 'U'}
-            </div>
-            <div>
-              <h3 className="text-base font-bold text-slate-900 font-serif-luxury">
-                Member Portal
-              </h3>
-              <p className="text-[11px] text-slate-500">{user.email}</p>
-            </div>
-          </div>
+        <div className="flex items-center gap-3">
+          <span className="hidden text-right text-[11px] text-bone-400 sm:block">
+            {user.displayName || 'Member'}
+          </span>
+          <span className="grid h-9 w-9 place-items-center rounded-full bg-gold-500 font-bold text-ink-950">
+            {(user.displayName || user.email || 'U').charAt(0).toUpperCase()}
+          </span>
           <button
+            type="button"
             id="dashboard-close-btn"
             onClick={onClose}
-            className="p-1.5 rounded-full hover:bg-stone-200 text-slate-500 hover:text-slate-900 transition-colors"
+            aria-label="Close dashboard"
+            className="grid h-9 w-9 place-items-center rounded-full text-bone-400 transition-colors hover:bg-white/10 hover:text-bone-50"
           >
-            <X className="w-5 h-5" />
+            ✕
           </button>
         </div>
+      </ModalHeader>
 
-        {/* Tabs */}
-        <div className="flex border-b border-stone-200 bg-stone-100/60 px-4 sm:px-6 overflow-x-auto">
-          <button
-            id="tab-my-listings"
-            onClick={() => setActiveTab('listings')}
-            className={`flex items-center gap-2 py-3 px-4 text-xs font-bold whitespace-nowrap border-b-2 transition-all ${
-              activeTab === 'listings'
-                ? 'border-amber-600 text-amber-800 bg-white'
-                : 'border-transparent text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <Home className="w-4 h-4 text-amber-600" />
-            <span>My Listed Properties ({myListedProperties.length})</span>
-          </button>
+      {/* Tabs */}
+      <div className="scrollbar-none flex overflow-x-auto border-b border-bone-200 bg-bone-100/50 px-4 sm:px-6">
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              id={`tab-my-${tab.id}`}
+              onClick={() => setActiveTab(tab.id)}
+              aria-current={isActive}
+              className={`flex shrink-0 items-center gap-2 border-b-2 px-4 py-3.5 text-[11px] font-bold uppercase tracking-[0.14em] transition-all ${
+                isActive
+                  ? 'border-gold-500 bg-white text-gold-800'
+                  : 'border-transparent text-bone-500 hover:text-ink-900'
+              }`}
+            >
+              <Icon className="h-4 w-4" />
+              {tab.label} ({tab.count})
+            </button>
+          );
+        })}
+      </div>
 
-          <button
-            id="tab-my-viewings"
-            onClick={() => setActiveTab('viewings')}
-            className={`flex items-center gap-2 py-3 px-4 text-xs font-bold whitespace-nowrap border-b-2 transition-all ${
-              activeTab === 'viewings'
-                ? 'border-amber-600 text-amber-800 bg-white'
-                : 'border-transparent text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <Calendar className="w-4 h-4 text-amber-600" />
-            <span>My Booked Viewings ({myViewings.length})</span>
-          </button>
+      <div className="flex-1 overflow-y-auto bg-bone-100/40 p-4 sm:p-6">
+        {/* Listings */}
+        {activeTab === 'listings' && (
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h4 className="text-sm font-bold text-ink-950">Your property listings</h4>
+                <p className="text-xs text-bone-500">
+                  Manage pricing, areas and viewing availability for each residence.
+                </p>
+              </div>
+              <MagneticButton
+                variant="gold"
+                size="sm"
+                onClick={() => {
+                  onClose();
+                  onOpenAddProperty();
+                }}
+              >
+                <Plus className="h-3.5 w-3.5" />
+                List Another
+              </MagneticButton>
+            </div>
 
-          <button
-            id="tab-my-inquiries"
-            onClick={() => setActiveTab('inquiries')}
-            className={`flex items-center gap-2 py-3 px-4 text-xs font-bold whitespace-nowrap border-b-2 transition-all ${
-              activeTab === 'inquiries'
-                ? 'border-amber-600 text-amber-800 bg-white'
-                : 'border-transparent text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <Layers className="w-4 h-4 text-amber-600" />
-            <span>Received Inquiries ({ownerInquiries.length})</span>
-          </button>
-
-          <button
-            id="tab-my-favorites"
-            onClick={() => setActiveTab('favorites')}
-            className={`flex items-center gap-2 py-3 px-4 text-xs font-bold whitespace-nowrap border-b-2 transition-all ${
-              activeTab === 'favorites'
-                ? 'border-amber-600 text-amber-800 bg-white'
-                : 'border-transparent text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <Heart className="w-4 h-4 text-rose-500" />
-            <span>Saved Favorites ({favoriteProperties.length})</span>
-          </button>
-        </div>
-
-        {/* Content Body */}
-        <div className="overflow-y-auto p-4 sm:p-6 flex-1 bg-stone-50/40">
-          {/* 1. MY LISTED PROPERTIES */}
-          {activeTab === 'listings' && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="text-sm font-bold text-slate-900">Your Property Listings</h4>
-                  <p className="text-xs text-slate-500">Manage, edit details, or remove your properties.</p>
-                </div>
-                <button
-                  onClick={() => {
+            {myListedProperties.length === 0 ? (
+              <EmptyState
+                icon={Building2}
+                title="You have not listed a property yet"
+                copy="Publish a house, apartment, villa, plot or office to reach pre-qualified buyers and tenants."
+                cta={{
+                  label: 'List Your First Property',
+                  onClick: () => {
                     onClose();
                     onOpenAddProperty();
-                  }}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold shadow-xs"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>List Another Property</span>
-                </button>
+                  },
+                }}
+              />
+            ) : (
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                {myListedProperties.map((property) => (
+                  <div key={property.id} className="space-y-2">
+                    <PropertyRow
+                      property={property}
+                      onSelect={(item) => {
+                        onClose();
+                        onSelectProperty(item);
+                      }}
+                    />
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onClose();
+                          onEditProperty(property);
+                        }}
+                        className="rounded-md bg-gold-50 px-3 py-1.5 text-[11px] font-bold text-gold-800 transition-colors hover:bg-gold-100"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onDeleteProperty(property)}
+                        className="rounded-md bg-rose-50 px-3 py-1.5 text-[11px] font-bold text-rose-700 transition-colors hover:bg-rose-100"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
+            )}
+          </div>
+        )}
 
-              {myListedProperties.length === 0 ? (
-                <div className="text-center py-12 bg-white rounded-xl border border-stone-200 p-6">
-                  <Building className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-                  <p className="text-xs font-semibold text-slate-700">You have not listed any properties yet.</p>
-                  <p className="text-[11px] text-slate-500 mt-1">List your luxury house, apartment, or land parcel to reach high-net-worth buyers.</p>
-                  <button
-                    onClick={() => {
-                      onClose();
-                      onOpenAddProperty();
-                    }}
-                    className="mt-4 px-4 py-2 bg-slate-900 text-white text-xs font-bold rounded-lg hover:bg-slate-800"
+        {/* My viewings */}
+        {activeTab === 'viewings' && (
+          <div className="space-y-4">
+            <div>
+              <h4 className="text-sm font-bold text-ink-950">Your scheduled viewings</h4>
+              <p className="text-xs text-bone-500">
+                Appointments you have requested on available residences.
+              </p>
+            </div>
+
+            {loadingViewings ? (
+              <p className="py-10 text-center text-xs text-bone-500">Loading your viewings…</p>
+            ) : myViewings.length === 0 ? (
+              <EmptyState
+                icon={Calendar}
+                title="No viewings scheduled yet"
+                copy="Open any residence and choose “Book Viewing” to reserve a private visit with an advisor."
+              />
+            ) : (
+              <div className="space-y-3">
+                {myViewings.map((viewing) => (
+                  <div
+                    key={viewing.id}
+                    className="flex flex-col items-start justify-between gap-4 rounded-xl border border-bone-200 bg-white p-4 shadow-lux-sm sm:flex-row sm:items-center"
                   >
-                    List Your First Property
-                  </button>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {myListedProperties.map((prop) => (
-                    <div
-                      key={prop.id}
-                      className="bg-white rounded-xl p-4 border border-stone-200 shadow-xs flex flex-col justify-between"
-                    >
-                      <div className="flex gap-3">
-                        <img
-                          src={prop.images?.[0] || 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=400&q=80'}
-                          alt={prop.title}
-                          className="w-20 h-20 rounded-lg object-cover border shrink-0"
-                          referrerPolicy="no-referrer"
-                        />
-                        <div className="min-w-0 flex-1">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 px-2 py-0.5 rounded">
-                            {prop.category} • {prop.listingType}
+                    <div className="flex items-center gap-3.5">
+                      <img
+                        src={viewing.propertyImage}
+                        alt=""
+                        width={64}
+                        height={64}
+                        loading="lazy"
+                        decoding="async"
+                        referrerPolicy="no-referrer"
+                        className="h-16 w-16 shrink-0 rounded-lg border border-bone-200 object-cover"
+                      />
+                      <div>
+                        <h5 className="text-xs font-bold text-ink-950">{viewing.propertyTitle}</h5>
+                        <div className="mt-0.5 flex items-center gap-1 text-[11px] text-bone-500">
+                          <MapPin className="h-3 w-3 shrink-0 text-gold-500" />
+                          {viewing.propertyLocation}
+                        </div>
+                        <div className="mt-1 flex flex-wrap items-center gap-3 text-[11px] font-semibold text-ink-800">
+                          <span>{viewing.date}</span>
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-3 w-3 text-bone-400" />
+                            {viewing.timeSlot}
                           </span>
-                          <h5 className="text-xs font-bold text-slate-900 truncate mt-1">{prop.title}</h5>
-                          <p className="text-[11px] text-slate-500 truncate">{prop.location}</p>
-                          <p className="text-xs font-bold text-amber-800 mt-1">
-                            ${prop.price.toLocaleString()}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="mt-4 pt-3 border-t border-stone-100 flex items-center justify-between">
-                        <button
-                          onClick={() => {
-                            onClose();
-                            onSelectProperty(prop);
-                          }}
-                          className="text-xs font-semibold text-slate-700 hover:text-slate-900 flex items-center gap-1"
-                        >
-                          <Eye className="w-3.5 h-3.5" />
-                          <span>View</span>
-                        </button>
-
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => {
-                              onClose();
-                              onEditProperty(prop);
-                            }}
-                            className="text-xs font-semibold text-amber-800 hover:text-amber-900 bg-amber-50 px-2.5 py-1 rounded"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => onDeleteProperty(prop)}
-                            className="text-xs font-semibold text-rose-700 hover:text-rose-800 bg-rose-50 px-2.5 py-1 rounded"
-                          >
-                            Delete
-                          </button>
+                          <span className="text-gold-600">
+                            {formatPrice(viewing.propertyPrice, 'sale')}
+                          </span>
                         </div>
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
 
-          {/* 2. MY BOOKED VIEWINGS */}
-          {activeTab === 'viewings' && (
-            <div className="space-y-4">
-              <div>
-                <h4 className="text-sm font-bold text-slate-900">Your Scheduled Private Viewings</h4>
-                <p className="text-xs text-slate-500">Appointments you requested on available properties.</p>
-              </div>
-
-              {loadingViewings ? (
-                <div className="text-center py-10 text-xs text-slate-500">Loading your viewings...</div>
-              ) : myViewings.length === 0 ? (
-                <div className="text-center py-12 bg-white rounded-xl border border-stone-200 p-6">
-                  <Calendar className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-                  <p className="text-xs font-semibold text-slate-700">No scheduled viewing appointments.</p>
-                  <p className="text-[11px] text-slate-500 mt-1">Browse our exclusive properties and click "Book Viewing" on any details page.</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {myViewings.map((viewing) => (
-                    <div
-                      key={viewing.id}
-                      className="bg-white rounded-xl p-4 border border-stone-200 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
-                    >
-                      <div className="flex items-center gap-3.5">
-                        <img
-                          src={viewing.propertyImage || 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=400&q=80'}
-                          alt={viewing.propertyTitle}
-                          className="w-16 h-16 rounded-lg object-cover border shrink-0"
-                          referrerPolicy="no-referrer"
-                        />
-                        <div>
-                          <h5 className="text-xs font-bold text-slate-900">{viewing.propertyTitle}</h5>
-                          <div className="flex items-center gap-1 text-[11px] text-slate-500 mt-0.5">
-                            <MapPin className="w-3 h-3 text-amber-600" />
-                            <span>{viewing.propertyLocation}</span>
-                          </div>
-                          <div className="flex items-center gap-3 mt-1 text-xs">
-                            <span className="font-semibold text-slate-800">📅 {viewing.date}</span>
-                            <span className="font-semibold text-slate-800">⏰ {viewing.timeSlot}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
-                        <span
-                          className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded ${
-                            viewing.status === 'confirmed'
-                              ? 'bg-emerald-100 text-emerald-800'
-                              : viewing.status === 'completed'
-                              ? 'bg-blue-100 text-blue-800'
-                              : viewing.status === 'cancelled'
-                              ? 'bg-rose-100 text-rose-800'
-                              : 'bg-amber-100 text-amber-800'
-                          }`}
+                    <div className="flex w-full items-center justify-between gap-3 sm:w-auto sm:justify-end">
+                      <span
+                        className={`rounded px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${STATUS_STYLES[viewing.status]}`}
+                      >
+                        {viewing.status}
+                      </span>
+                      {viewing.status !== 'cancelled' && (
+                        <button
+                          type="button"
+                          onClick={() => handleCancelBooking(viewing.id)}
+                          className="text-[11px] font-bold text-rose-600 transition-colors hover:text-rose-800"
                         >
-                          {viewing.status}
-                        </span>
+                          Cancel
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
-                        {viewing.status !== 'cancelled' && (
+        {/* Inquiries received */}
+        {activeTab === 'inquiries' && (
+          <div className="space-y-4">
+            <div>
+              <h4 className="text-sm font-bold text-ink-950">Viewing inquiries on your listings</h4>
+              <p className="text-xs text-bone-500">
+                Prospective buyers requesting walkthroughs of residences you have listed.
+              </p>
+            </div>
+
+            {loadingViewings ? (
+              <p className="py-10 text-center text-xs text-bone-500">Loading inquiries…</p>
+            ) : ownerInquiries.length === 0 ? (
+              <EmptyState
+                icon={Layers}
+                title="No viewing requests received yet"
+                copy="When buyers schedule viewings on your listings, their requests will appear here for confirmation."
+              />
+            ) : (
+              <div className="space-y-3">
+                {ownerInquiries.map((inquiry) => (
+                  <div
+                    key={inquiry.id}
+                    className="space-y-3 rounded-xl border border-bone-200 bg-white p-4 shadow-lux-sm"
+                  >
+                    <div className="flex flex-col items-start justify-between gap-2 border-b border-bone-100 pb-3 sm:flex-row sm:items-center">
+                      <div>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-gold-700">
+                          Property
+                        </span>
+                        <h5 className="text-xs font-bold text-ink-950">{inquiry.propertyTitle}</h5>
+                      </div>
+                      <span className="text-[11px] font-bold text-ink-700">
+                        {inquiry.date} · {inquiry.timeSlot}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-2 rounded-lg bg-bone-100/60 p-3 text-xs text-ink-600 sm:grid-cols-2">
+                      <p className="flex items-center gap-1.5">
+                        <User className="h-3.5 w-3.5 text-bone-400" />
+                        <span className="font-bold text-ink-900">Client:</span> {inquiry.userName}
+                      </p>
+                      <p className="flex items-center gap-1.5">
+                        <Mail className="h-3.5 w-3.5 text-bone-400" />
+                        <span className="font-bold text-ink-900">Email:</span> {inquiry.userEmail}
+                      </p>
+                      <p className="flex items-center gap-1.5">
+                        <Phone className="h-3.5 w-3.5 text-bone-400" />
+                        <span className="font-bold text-ink-900">Phone:</span>{' '}
+                        {inquiry.userPhone || 'Not shared'}
+                      </p>
+                      {inquiry.notes ? (
+                        <p className="sm:col-span-2">
+                          <span className="font-bold text-ink-900">Notes:</span> {inquiry.notes}
+                        </p>
+                      ) : null}
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <span
+                        className={`rounded px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${STATUS_STYLES[inquiry.status]}`}
+                      >
+                        {inquiry.status}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        {inquiry.status === 'pending' && (
                           <button
-                            onClick={() => handleCancelBooking(viewing.id)}
-                            className="text-xs text-rose-600 hover:text-rose-800 font-semibold px-2 py-1 hover:bg-rose-50 rounded"
+                            type="button"
+                            onClick={() => handleUpdateStatus(inquiry.id, 'confirmed')}
+                            className="flex items-center gap-1.5 rounded-md bg-emerald-600 px-3 py-1.5 text-[11px] font-bold text-white transition-colors hover:bg-emerald-700"
                           >
-                            Cancel
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                            Confirm
+                          </button>
+                        )}
+                        {inquiry.status === 'confirmed' && (
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateStatus(inquiry.id, 'completed')}
+                            className="rounded-md bg-blue-600 px-3 py-1.5 text-[11px] font-bold text-white transition-colors hover:bg-blue-700"
+                          >
+                            Mark Completed
+                          </button>
+                        )}
+                        {inquiry.status !== 'cancelled' && (
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateStatus(inquiry.id, 'cancelled')}
+                            className="flex items-center gap-1.5 rounded-md bg-rose-50 px-3 py-1.5 text-[11px] font-bold text-rose-700 transition-colors hover:bg-rose-100"
+                          >
+                            <XCircle className="h-3.5 w-3.5" />
+                            Decline
                           </button>
                         )}
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* 3. RECEIVED INQUIRIES */}
-          {activeTab === 'inquiries' && (
-            <div className="space-y-4">
-              <div>
-                <h4 className="text-sm font-bold text-slate-900">Viewing Inquiries on Your Listings</h4>
-                <p className="text-xs text-slate-500">Prospective buyers requesting walkthroughs on properties you listed.</p>
+                  </div>
+                ))}
               </div>
+            )}
+          </div>
+        )}
 
-              {loadingViewings ? (
-                <div className="text-center py-10 text-xs text-slate-500">Loading inquiries...</div>
-              ) : ownerInquiries.length === 0 ? (
-                <div className="text-center py-12 bg-white rounded-xl border border-stone-200 p-6">
-                  <Layers className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-                  <p className="text-xs font-semibold text-slate-700">No viewing requests received yet.</p>
-                  <p className="text-[11px] text-slate-500 mt-1">When buyers schedule viewings on your listed properties, they will appear here.</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {ownerInquiries.map((inquiry) => (
-                    <div
-                      key={inquiry.id}
-                      className="bg-white rounded-xl p-4 border border-stone-200 shadow-xs space-y-3"
-                    >
-                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-2 border-b border-stone-100">
-                        <div>
-                          <span className="text-[10px] uppercase font-bold text-amber-700">Property:</span>
-                          <h5 className="text-xs font-bold text-slate-900">{inquiry.propertyTitle}</h5>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-slate-700">Appointment: {inquiry.date} at {inquiry.timeSlot}</span>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-600 bg-stone-50 p-3 rounded-lg">
-                        <div>
-                          <span className="font-semibold text-slate-900">Client:</span> {inquiry.userName}
-                        </div>
-                        <div>
-                          <span className="font-semibold text-slate-900">Email:</span> {inquiry.userEmail}
-                        </div>
-                        <div>
-                          <span className="font-semibold text-slate-900">Phone:</span> {inquiry.userPhone}
-                        </div>
-                        {inquiry.notes && (
-                          <div className="sm:col-span-2">
-                            <span className="font-semibold text-slate-900">Notes:</span> {inquiry.notes}
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex items-center justify-between pt-1">
-                        <span
-                          className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded ${
-                            inquiry.status === 'confirmed'
-                              ? 'bg-emerald-100 text-emerald-800'
-                              : inquiry.status === 'completed'
-                              ? 'bg-blue-100 text-blue-800'
-                              : inquiry.status === 'cancelled'
-                              ? 'bg-rose-100 text-rose-800'
-                              : 'bg-amber-100 text-amber-800'
-                          }`}
-                        >
-                          Status: {inquiry.status}
-                        </span>
-
-                        <div className="flex items-center gap-2">
-                          {inquiry.status === 'pending' && (
-                            <button
-                              onClick={() => handleUpdateStatus(inquiry.id, 'confirmed')}
-                              className="text-xs font-semibold px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md flex items-center gap-1"
-                            >
-                              <CheckCircle2 className="w-3.5 h-3.5" />
-                              <span>Confirm Appointment</span>
-                            </button>
-                          )}
-                          {inquiry.status === 'confirmed' && (
-                            <button
-                              onClick={() => handleUpdateStatus(inquiry.id, 'completed')}
-                              className="text-xs font-semibold px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-md"
-                            >
-                              Mark Completed
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+        {/* Shortlist */}
+        {activeTab === 'favorites' && (
+          <div className="space-y-4">
+            <div>
+              <h4 className="text-sm font-bold text-ink-950">Your shortlisted residences</h4>
+              <p className="text-xs text-bone-500">
+                Saved homes and plots for quick reference and comparison.
+              </p>
             </div>
-          )}
 
-          {/* 4. SAVED FAVORITES */}
-          {activeTab === 'favorites' && (
-            <div className="space-y-4">
-              <div>
-                <h4 className="text-sm font-bold text-slate-900">Your Saved Properties</h4>
-                <p className="text-xs text-slate-500">Shortlisted homes and plots for quick reference.</p>
+            {favoriteProperties.length === 0 ? (
+              <EmptyState
+                icon={Heart}
+                title="Your shortlist is empty"
+                copy="Tap the heart icon on any residence card to save it here for later."
+              />
+            ) : (
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                {favoriteProperties.map((property) => (
+                  <PropertyRow
+                    key={property.id}
+                    property={property}
+                    onSelect={(item) => {
+                      onClose();
+                      onSelectProperty(item);
+                    }}
+                    onToggleFavorite={onToggleFavorite}
+                    actionLabel="Remove"
+                    onAction={(item) => onToggleFavorite(item.id)}
+                  />
+                ))}
               </div>
-
-              {favoriteProperties.length === 0 ? (
-                <div className="text-center py-12 bg-white rounded-xl border border-stone-200 p-6">
-                  <Heart className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-                  <p className="text-xs font-semibold text-slate-700">No properties in your favorites list.</p>
-                  <p className="text-[11px] text-slate-500 mt-1">Click the heart icon on any property card to save it here.</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {favoriteProperties.map((prop) => (
-                    <div
-                      key={prop.id}
-                      className="bg-white rounded-xl p-4 border border-stone-200 shadow-xs flex flex-col justify-between"
-                    >
-                      <div className="flex gap-3">
-                        <img
-                          src={prop.images?.[0] || 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=400&q=80'}
-                          alt={prop.title}
-                          className="w-20 h-20 rounded-lg object-cover border shrink-0"
-                          referrerPolicy="no-referrer"
-                        />
-                        <div className="min-w-0 flex-1">
-                          <h5 className="text-xs font-bold text-slate-900 truncate">{prop.title}</h5>
-                          <p className="text-[11px] text-slate-500 truncate">{prop.location}</p>
-                          <p className="text-xs font-bold text-amber-800 mt-1">
-                            ${prop.price.toLocaleString()}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="mt-4 pt-3 border-t border-stone-100 flex items-center justify-between">
-                        <button
-                          onClick={() => {
-                            onClose();
-                            onSelectProperty(prop);
-                          }}
-                          className="text-xs font-semibold text-slate-700 hover:text-slate-900 flex items-center gap-1"
-                        >
-                          <Eye className="w-3.5 h-3.5" />
-                          <span>View Details</span>
-                        </button>
-                        <button
-                          onClick={() => onToggleFavorite(prop.id)}
-                          className="text-xs font-semibold text-rose-600 hover:text-rose-700"
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
-    </div>
+    </Modal>
   );
 };
