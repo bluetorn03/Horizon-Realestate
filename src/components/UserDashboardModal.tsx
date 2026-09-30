@@ -26,6 +26,7 @@ import {
   updateViewingStatus, 
   deleteViewing 
 } from '../lib/firebase';
+import { formatPropertyPrice } from '../lib/format';
 
 interface UserDashboardModalProps {
   initialTab?: 'listings' | 'viewings' | 'inquiries' | 'favorites';
@@ -249,7 +250,7 @@ export const UserDashboardModal: React.FC<UserDashboardModalProps> = ({
                           <h5 className="text-xs font-bold text-slate-900 truncate mt-1">{prop.title}</h5>
                           <p className="text-[11px] text-slate-500 truncate">{prop.location}</p>
                           <p className="text-xs font-bold text-amber-800 mt-1">
-                            ${prop.price.toLocaleString()}
+                            {formatPropertyPrice(prop.price, prop.listingType)}
                           </p>
                         </div>
                       </div>
@@ -489,7 +490,7 @@ export const UserDashboardModal: React.FC<UserDashboardModalProps> = ({
                           <h5 className="text-xs font-bold text-slate-900 truncate">{prop.title}</h5>
                           <p className="text-[11px] text-slate-500 truncate">{prop.location}</p>
                           <p className="text-xs font-bold text-amber-800 mt-1">
-                            ${prop.price.toLocaleString()}
+                            {formatPropertyPrice(prop.price, prop.listingType)}
                           </p>
                         </div>
                       </div>

@@ -180,8 +180,8 @@ export const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({
           location,
           address: address || location,
           city,
-          state: state || 'CA',
-          zipCode: zipCode || '90210',
+          state: state || 'Maharashtra',
+          zipCode: zipCode || '400001',
           bedrooms: Number(bedrooms) || 0,
           bathrooms: Number(bathrooms) || 0,
           sqft: Number(sqft) || 0,
@@ -193,7 +193,7 @@ export const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({
           ownerId: user.uid,
           ownerName: user.displayName || 'Property Owner',
           ownerEmail: user.email || '',
-          ownerPhone: '+1 (212) 555-7890',
+          ownerPhone: '+91 98200 41122',
           ownerPhoto: user.photoURL || 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=256&q=80',
         });
 
@@ -326,7 +326,7 @@ export const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({
 
                 <div>
                   <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">
-                    Price (USD $) *
+                    Price (INR ₹) *
                   </label>
                   <input
                     type="number"
@@ -334,7 +334,7 @@ export const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({
                     min={1}
                     value={price}
                     onChange={(e) => setPrice(e.target.value)}
-                    placeholder="e.g. 2850000"
+                    placeholder="e.g. 32500000"
                     className="w-full bg-stone-50 border border-stone-300 rounded-lg px-3.5 py-2.5 text-xs text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500"
                   />
                 </div>
@@ -357,7 +357,7 @@ export const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({
                     required
                     value={location}
                     onChange={(e) => setLocation(e.target.value)}
-                    placeholder="e.g. Beverly Hills, California"
+                    placeholder="e.g. Worli, Mumbai, Maharashtra"
                     className="w-full bg-stone-50 border border-stone-300 rounded-lg px-3.5 py-2 text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-amber-500"
                   />
                 </div>
@@ -371,7 +371,7 @@ export const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({
                     required
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
-                    placeholder="e.g. 742 Evergreen Crest Way"
+                    placeholder="e.g. Dr Annie Besant Road, Worli"
                     className="w-full bg-stone-50 border border-stone-300 rounded-lg px-3.5 py-2 text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-amber-500"
                   />
                 </div>
@@ -385,7 +385,7 @@ export const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({
                     required
                     value={city}
                     onChange={(e) => setCity(e.target.value)}
-                    placeholder="e.g. Beverly Hills"
+                    placeholder="e.g. Mumbai"
                     className="w-full bg-stone-50 border border-stone-300 rounded-lg px-3.5 py-2 text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-amber-500"
                   />
                 </div>
@@ -399,7 +399,7 @@ export const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({
                       type="text"
                       value={state}
                       onChange={(e) => setState(e.target.value)}
-                      placeholder="CA"
+                      placeholder="MH"
                       className="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-2 text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-amber-500"
                     />
                   </div>
@@ -411,7 +411,7 @@ export const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({
                       type="text"
                       value={zipCode}
                       onChange={(e) => setZipCode(e.target.value)}
-                      placeholder="90210"
+                      placeholder="400018"
                       className="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-2 text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-amber-500"
                     />
                   </div>

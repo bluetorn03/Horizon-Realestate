@@ -79,9 +79,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const demoLogin = async (role: 'buyer' | 'agent' = 'buyer') => {
     // If not using real credentials, generate a demo user or sign in with test email
-    const demoEmail = role === 'agent' ? 'agent.demo@horizonestates.com' : 'buyer.demo@horizonestates.com';
+    const demoEmail = role === 'agent' ? 'agent.demo@horizonestates.in' : 'buyer.demo@horizonestates.in';
     const demoPass = 'DemoPassword123!';
-    const demoName = role === 'agent' ? 'Marcus Sterling (Agent)' : 'Sarah Jenkins';
+    const demoName = role === 'agent' ? 'Vikram Rathore (Advisor)' : 'Aarav Mehta';
 
     try {
       await signInWithEmailAndPassword(auth, demoEmail, demoPass);

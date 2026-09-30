@@ -16,6 +16,7 @@ import confetti from 'canvas-confetti';
 import type { Property, Viewing } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { bookViewing } from '../lib/firebase';
+import { formatPropertyPrice } from '../lib/format';
 
 interface BookViewingModalProps {
   property: Property | null;
@@ -44,7 +45,7 @@ export const BookViewingModal: React.FC<BookViewingModalProps> = ({
   const [timeSlot, setTimeSlot] = useState('11:30 AM');
   const [userName, setUserName] = useState(user?.displayName || '');
   const [userEmail, setUserEmail] = useState(user?.email || '');
-  const [userPhone, setUserPhone] = useState('+1 (555) 234-5678');
+  const [userPhone, setUserPhone] = useState('+91 98200 12345');
   const [notes, setNotes] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -154,7 +155,7 @@ export const BookViewingModal: React.FC<BookViewingModalProps> = ({
                 <span className="truncate">{property.location || property.city}</span>
               </div>
               <div className="text-xs font-bold text-amber-800 mt-1">
-                ${property.price.toLocaleString()}
+                {formatPropertyPrice(property.price, property.listingType)}
               </div>
             </div>
           </div>
@@ -304,7 +305,7 @@ export const BookViewingModal: React.FC<BookViewingModalProps> = ({
                     required
                     value={userPhone}
                     onChange={(e) => setUserPhone(e.target.value)}
-                    placeholder="+1 (555) 000-0000"
+                    placeholder="+91 98200 00000"
                     className="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-2 text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-amber-500"
                   />
                 </div>

@@ -30,6 +30,8 @@ export interface Property {
   ownerPhoto?: string;
   createdAt: string;
   updatedAt?: string;
+  /** Catalog generation marker — used to retire the original USD demo listings. */
+  catalogVersion?: number;
 }
 
 export type ViewingStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed';

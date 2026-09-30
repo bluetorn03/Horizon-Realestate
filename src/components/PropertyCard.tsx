@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import type { Property } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { formatPropertyPrice } from '../lib/format';
 
 interface PropertyCardProps {
   property: Property;
@@ -36,11 +37,7 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
   const { user } = useAuth();
   const isOwner = user && property.ownerId === user.uid;
 
-  const formattedPrice = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 0,
-  }).format(property.price);
+  const formattedPrice = formatPropertyPrice(property.price, property.listingType);
 
   const primaryImage = property.images && property.images.length > 0
     ? property.images[0]

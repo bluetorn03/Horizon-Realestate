@@ -194,11 +194,11 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                   className="w-full bg-stone-50 border border-stone-300 text-slate-900 text-xs rounded-lg px-3 py-2.5 appearance-none focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent font-medium"
                 >
                   <option value={0}>Min Price (Any)</option>
-                  <option value={3000}>$3,000 / mo</option>
-                  <option value={500000}>$500,000</option>
-                  <option value={1000000}>$1,000,000</option>
-                  <option value={2000000}>$2,000,000</option>
-                  <option value={5000000}>$5,000,000</option>
+                  <option value={100000}>₹1 Lakh</option>
+                  <option value={5000000}>₹50 Lakh</option>
+                  <option value={10000000}>₹1 Crore</option>
+                  <option value={25000000}>₹2.5 Crore</option>
+                  <option value={50000000}>₹5 Crore</option>
                 </select>
                 <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               </div>
@@ -216,12 +216,12 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                   onChange={(e) => onFilterChange({ maxPrice: Number(e.target.value) })}
                   className="w-full bg-stone-50 border border-stone-300 text-slate-900 text-xs rounded-lg px-3 py-2.5 appearance-none focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent font-medium"
                 >
-                  <option value={100000000}>Max Price (Any)</option>
-                  <option value={10000}>$10,000 / mo</option>
-                  <option value={1500000}>$1,500,000</option>
-                  <option value={3000000}>$3,000,000</option>
-                  <option value={6000000}>$6,000,000</option>
-                  <option value={10000000}>$10,000,000+</option>
+                  <option value={1000000000}>Max Price (Any)</option>
+                  <option value={1000000}>₹10 Lakh</option>
+                  <option value={25000000}>₹2.5 Crore</option>
+                  <option value={50000000}>₹5 Crore</option>
+                  <option value={100000000}>₹10 Crore</option>
+                  <option value={250000000}>₹25 Crore</option>
                 </select>
                 <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               </div>
