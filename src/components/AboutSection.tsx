@@ -19,7 +19,7 @@ export const AboutSection: React.FC<AboutSectionProps> = ({
           {/* Left Column: City Skyline Sunset Image with Golden Play Button */}
           <div className="relative rounded-2xl overflow-hidden shadow-2xl group">
             <img
-              src="https://images.unsplash.com/photo-1477959858617-67f30bc75b82?auto=format&fit=crop&w=1200&q=80"
+              src="https://images.unsplash.com/photo-1512453979798-5ea266f8880c?auto=format&fit=crop&w=1200&q=80"
               alt="City Skyline Sunset - Horizon Estates Vision"
               className="w-full h-[380px] sm:h-[450px] object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
               referrerPolicy="no-referrer"

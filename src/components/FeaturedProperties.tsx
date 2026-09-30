@@ -4,6 +4,8 @@ import type { Property, PropertyFilterState, PropertyCategory } from '../types';
 import { PropertyCard } from './PropertyCard';
 
 interface FeaturedPropertiesProps {
+  eyebrow?: string;
+  title?: string;
   properties: Property[];
   loading: boolean;
   filters: PropertyFilterState;
@@ -19,6 +21,8 @@ interface FeaturedPropertiesProps {
 }
 
 export const FeaturedProperties: React.FC<FeaturedPropertiesProps> = ({
+  eyebrow = 'FEATURED PROPERTIES',
+  title = 'Explore Our Exclusive Properties',
   properties,
   loading,
   filters,
@@ -50,10 +54,10 @@ export const FeaturedProperties: React.FC<FeaturedPropertiesProps> = ({
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
           <div>
             <div className="text-[11px] font-bold tracking-[0.2em] text-amber-700 uppercase mb-1.5">
-              FEATURED PROPERTIES
+              {eyebrow}
             </div>
             <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-950 font-serif-luxury tracking-tight">
-              Explore Our Exclusive Properties
+              {title}
             </h2>
           </div>
 
