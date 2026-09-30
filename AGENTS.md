@@ -2,7 +2,7 @@
 
 ## App overview
 Horizon Estates — a Vite + React 19 + TypeScript luxury real estate site for the Indian market.
-- Package manager: **bun** (repo has `bun.lock`). `package.json` lists vite in both deps and devDeps (harmless duplicate warning).
+- Package manager: **bun** (repo has `bun.lock`). `vite` is declared once (devDependencies).
 - Dev server: `bun run dev` → `vite --port=3000 --host=0.0.0.0` (already binds 0.0.0.0).
 - **Multi-page** app: `react-router-dom` (BrowserRouter). Routes live in `src/App.tsx`, shared shell in `src/components/layout/SiteLayout.tsx`.
 - No backend server. Data/auth via **Firebase** (Firestore + Auth). Firebase config is baked into the committed `firebase-applet-config.json` — no Firebase credentials needed from the user.
